@@ -31,29 +31,67 @@ class LobbyManager {
         return { lobbyId, hostId };
     }
 
-    async getLobby(lobbyId) {
-        const filePath = path.join(__dirname, '..', 'data', `lobby_${lobbyId}.json`);
+async getLobby(lobbyId) {
+    const filePath = path.join(__dirname, '..', 'data', `lobby_${lobbyId}.json`);
+    
+    try {
+        const data = await fs.readFile(filePath, 'utf8');
+        
+        // Очищаем данные от возможных проблемных символов
+        const cleanData = data.replace(/^\uFEFF/, '') // Удаляем BOM
+                              .replace(/\0/g, '')     // Удаляем нулевые байты
+                              .trim();                // Удаляем пробелы в начале/конце
+        
+        // Проверяем, что это валидный JSON
+        return JSON.parse(cleanData);
+        
+    } catch (error) {
+        console.error(`❌ Error reading lobby ${lobbyId}:`, error.message);
+        
+        // Пытаемся восстановить из бэкапа если есть
+        const backupPath = filePath + '.bak';
         try {
-            const data = await fs.readFile(filePath, 'utf8');
-            const cleanData = data.replace(/^\uFEFF/, '').trim();
-            return JSON.parse(cleanData);
-        } catch (error) {
-            console.error(`❌ Error reading lobby ${lobbyId}:`, error.message);
+            const backupData = await fs.readFile(backupPath, 'utf8');
+            const cleanBackup = backupData.replace(/^\uFEFF/, '').trim();
+            console.log(`🔄 Restored from backup: ${lobbyId}`);
+            return JSON.parse(cleanBackup);
+        } catch (backupError) {
             throw new Error('Lobby not found');
         }
     }
+}
 
     // Упрощенное сохранение без временного файла
-    async saveLobby(lobbyId, lobby) {
-        const filePath = path.join(__dirname, '..', 'data', `lobby_${lobbyId}.json`);
-        try {
-            await fs.writeFile(filePath, JSON.stringify(lobby, null, 2));
-            console.log(`💾 Lobby saved: ${lobbyId}`);
-        } catch (error) {
-            console.error(`❌ Error saving lobby ${lobbyId}:`, error);
-            throw error;
-        }
+   async saveLobby(lobbyId, lobby) {
+    const filePath = path.join(__dirname, '..', 'data', `lobby_${lobbyId}.json`);
+    
+    try {
+        // Сначала пишем во временный файл
+        const tempPath = filePath + '.tmp';
+        const data = JSON.stringify(lobby, null, 2);
+        
+        // Проверяем, что данные валидны перед записью
+        JSON.parse(data); // Бросит ошибку если невалидно
+        
+        await fs.writeFile(tempPath, data, 'utf8');
+        
+        // Проверяем, что временный файл записался корректно
+        const written = await fs.readFile(tempPath, 'utf8');
+        JSON.parse(written); // Еще раз проверяем
+        
+        // Атомарно заменяем основной файл
+        await fs.rename(tempPath, filePath);
+        
+        console.log(`💾 Lobby saved successfully: ${lobbyId}`);
+    } catch (error) {
+        console.error(`❌ Critical error saving lobby ${lobbyId}:`, error);
+        // Пытаемся удалить временный файл
+        try { 
+            await fs.unlink(tempPath); 
+        } catch (e) {}
+        throw new Error('Failed to save lobby');
     }
+}
 
     async startGame(lobbyId, gameDataFromClient) {
         console.log(`🎮 LobbyManager.startGame: ${lobbyId}`);

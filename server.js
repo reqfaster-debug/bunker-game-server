@@ -407,4 +407,29 @@ async function start() {
     }
 }
 
+
+// В server.js после создания папки data
+async function cleanupCorruptedLobbies() {
+    const dataDir = path.join(__dirname, 'data');
+    const files = await fs.readdir(dataDir);
+    
+    for (const file of files) {
+        if (file.startsWith('lobby_') && file.endsWith('.json')) {
+            const filePath = path.join(dataDir, file);
+            try {
+                const data = await fs.readFile(filePath, 'utf8');
+                JSON.parse(data); // Проверяем валидность
+            } catch (e) {
+                console.log(`🧹 Removing corrupted lobby: ${file}`);
+                const backupPath = filePath + '.corrupted.' + Date.now();
+                await fs.rename(filePath, backupPath);
+            }
+        }
+    }
+}
+
+// Вызовите после создания папки
+await cleanupCorruptedLobbies();
+
+
 start();
