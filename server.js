@@ -80,6 +80,32 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('update_nickname', async ({ lobbyId, playerId, newNickname }) => {
+    try {
+        // Проверка длины ника
+        if (!newNickname || newNickname.length > 20) {
+            socket.emit('error', { message: 'Ник должен быть от 1 до 20 символов' });
+            return;
+        }
+        
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        const player = lobby.players.find(p => p.id === playerId);
+        
+        if (player) {
+            player.nickname = newNickname;
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            
+            // Оповещаем всех в лобби об обновлении
+            io.to(lobbyId).emit('player_updated', { 
+                id: playerId, 
+                nickname: newNickname 
+            });
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
     socket.on('reveal_character', async ({ lobbyId, playerId }) => {
         try {
             await lobbyManager.revealCharacter(lobbyId, playerId);

@@ -43,35 +43,44 @@ class LobbyManager {
         }
     }
 
-    async joinLobby(lobbyId, playerId, nickname, socketId) {
-        const lobby = await this.getLobby(lobbyId);
-        
-        if (lobby.status !== 'waiting') {
-            throw new Error('Game already started');
-        }
-
-        let player = lobby.players.find(p => p.id === playerId);
-        
-        if (player) {
-            player.online = true;
-            player.socketId = socketId;
-        } else {
-            player = {
-                id: uuidv4(),
-                nickname,
-                online: true,
-                socketId,
-                revealed: false,
-                alive: true,
-                character: {}
-            };
-            lobby.players.push(player);
-        }
-
-        await this.saveLobby(lobbyId, lobby);
-        return player;
+async joinLobby(lobbyId, playerId, nickname, socketId) {
+    const lobby = await this.getLobby(lobbyId);
+    
+    if (lobby.status !== 'waiting') {
+        throw new Error('Game already started');
     }
 
+    // Валидация ника
+    if (!nickname || nickname.length > 20) {
+        throw new Error('Ник должен быть от 1 до 20 символов');
+    }
+
+    let player = lobby.players.find(p => p.id === playerId);
+    
+    if (player) {
+        // Reconnecting player - обновляем ник если он изменился
+        player.online = true;
+        player.socketId = socketId;
+        if (nickname && nickname !== player.nickname) {
+            player.nickname = nickname;
+        }
+    } else {
+        // New player
+        player = {
+            id: uuidv4(),
+            nickname,
+            online: true,
+            socketId,
+            revealed: false,
+            alive: true,
+            character: {}
+        };
+        lobby.players.push(player);
+    }
+
+    await this.saveLobby(lobbyId, lobby);
+    return player;
+}
     async reconnectPlayer(lobbyId, playerId, socketId) {
         const lobby = await this.getLobby(lobbyId);
         const player = lobby.players.find(p => p.id === playerId);
@@ -105,49 +114,54 @@ class LobbyManager {
         }
     }
 
-    async startGame(lobbyId, gameDataFromClient) {
-        const lobby = await this.getLobby(lobbyId);
-        
-        if (lobby.players.length < 6) {
-            throw new Error('Need at least 6 players to start');
-        }
-
-        // Generate characters for all players
-        for (const player of lobby.players) {
-            player.character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
-        }
-
-        // Check gender requirements
-        const genders = lobby.players.map(p => p.character.gender);
-        const maleCount = genders.filter(g => g === "Мужской").length;
-        const femaleCount = genders.filter(g => g === "Женский").length;
-        const transformerCount = genders.filter(g => g === "Трансформер").length;
-
-        if (maleCount === 0) {
-            const randomPlayer = lobby.players.find(p => p.character.gender !== "Женский");
-            if (randomPlayer) randomPlayer.character.gender = "Мужской";
-        }
-        if (femaleCount === 0) {
-            const randomPlayer = lobby.players.find(p => p.character.gender !== "Мужской");
-            if (randomPlayer) randomPlayer.character.gender = "Женский";
-        }
-        if (transformerCount > 1) {
-            const transformerPlayers = lobby.players.filter(p => p.character.gender === "Трансформер");
-            for (let i = 1; i < transformerPlayers.length; i++) {
-                transformerPlayers[i].character.gender = Math.random() > 0.5 ? "Мужской" : "Женский";
-            }
-        }
-
-        // Generate game data
-        lobby.gameData = gameGenerator.generateGameData(
-            gameDataFromClient.catastrophes,
-            gameDataFromClient.bunkers
-        );
-        lobby.status = 'playing';
-
-        await this.saveLobby(lobbyId, lobby);
-        return lobby.gameData;
+   async startGame(lobbyId, gameDataFromClient) {
+    const lobby = await this.getLobby(lobbyId);
+    
+    if (lobby.players.length < 6) {
+        throw new Error('Need at least 6 players to start');
     }
+
+    // Генерируем персонажей для всех игроков
+    for (const player of lobby.players) {
+        player.character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
+    }
+
+    // Проверяем требования к полу
+    const genders = lobby.players.map(p => p.character.gender);
+    const maleCount = genders.filter(g => g === "Мужской").length;
+    const femaleCount = genders.filter(g => g === "Женский").length;
+    const transformerCount = genders.filter(g => g === "Трансформер").length;
+
+    if (maleCount === 0) {
+        const randomPlayer = lobby.players.find(p => p.character.gender !== "Женский");
+        if (randomPlayer) randomPlayer.character.gender = "Мужской";
+    }
+    if (femaleCount === 0) {
+        const randomPlayer = lobby.players.find(p => p.character.gender !== "Мужской");
+        if (randomPlayer) randomPlayer.character.gender = "Женский";
+    }
+    if (transformerCount > 1) {
+        const transformerPlayers = lobby.players.filter(p => p.character.gender === "Трансформер");
+        for (let i = 1; i < transformerPlayers.length; i++) {
+            transformerPlayers[i].character.gender = Math.random() > 0.5 ? "Мужской" : "Женский";
+        }
+    }
+
+    // Рассчитываем количество мест в бункере (50% от текущего количества игроков, округление вверх)
+    const bunkerSpaces = Math.floor(lobby.players.length * 0.5);
+    
+    // Генерируем данные игры с учетом мест в бункере
+    lobby.gameData = gameGenerator.generateGameData(
+        gameDataFromClient.catastrophes,
+        gameDataFromClient.bunkers,
+        bunkerSpaces  // 👈 Передаем количество мест (округление вниз)
+    );
+    
+    lobby.status = 'playing';
+
+    await this.saveLobby(lobbyId, lobby);
+    return lobby.gameData;
+}
 
     async revealCharacter(lobbyId, playerId) {
         const lobby = await this.getLobby(lobbyId);
@@ -219,10 +233,11 @@ class LobbyManager {
         }
     }
 
-    async saveLobby(lobbyId, lobby) {
-        const filePath = path.join(__dirname, '..', 'data', `lobby_${lobbyId}.json`);
-        await fs.writeFile(filePath, JSON.stringify(lobby, null, 2));
-    }
+async saveLobby(lobbyId, lobby) {
+    const filePath = path.join(__dirname, '..', 'data', `lobby_${lobbyId}.json`);
+    await fs.writeFile(filePath, JSON.stringify(lobby, null, 2));
+}
+
 }
 
 module.exports = new LobbyManager();
