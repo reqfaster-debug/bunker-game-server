@@ -196,9 +196,9 @@ async saveLobby(lobbyId, lobby) {
     }
 }
 
-  async startGame(lobbyId, gameDataFromClient) {
+async startGame(lobbyId, gameDataFromClient) {
     console.log(`🎮 LobbyManager.startGame: ${lobbyId}`);
-    console.log('🔥 playersData:', gameDataFromClient.playersData);
+    console.log('🔥 playersData received:', JSON.stringify(gameDataFromClient.playersData, null, 2));
     
     const lobby = await this.getLobby(lobbyId);
     
@@ -206,11 +206,21 @@ async saveLobby(lobbyId, lobby) {
         throw new Error('Нужно минимум 6 игроков для старта');
     }
     
+    console.log(`👥 Generating characters for ${lobby.players.length} players...`);
+    
     // Генерируем персонажей
     for (const player of lobby.players) {
-        player.character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
+        const character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
+        player.character = character;
         player.revealedCharacteristics = [];
-        console.log(`✅ Generated character for ${player.nickname}:`, player.character);
+        console.log(`✅ Generated character for ${player.nickname}:`, {
+            age: character.age,
+            gender: character.gender,
+            trait: character.trait,
+            profession: character.profession.name,
+            hobby: character.hobby,
+            health: character.health.condition
+        });
     }
     
     // Проверяем пол
@@ -238,6 +248,7 @@ async saveLobby(lobbyId, lobby) {
     
     await this.saveLobby(lobbyId, lobby);
     console.log(`✅ Game started in ${lobbyId}`);
+    console.log(`📊 First player example:`, lobby.players[0].character);
     
     return lobby;
 }

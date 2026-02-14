@@ -11,7 +11,7 @@ class GameGenerator {
     }
 
     generateBodyType() {
-        const types = ["Худое", "Атлетическое", "Полное", "Ожирение-сильное"];
+        const types = ["Худощавое", "Атлетическое", "Среднее", "Плотное", "Полное", "Ожирение"];
         return types[Math.floor(Math.random() * types.length)];
     }
 
@@ -25,117 +25,118 @@ class GameGenerator {
         return severities[Math.floor(Math.random() * severities.length)];
     }
 
-generateCharacter(playersData) {
-    console.log('🎲 Generating character with data:', playersData);
-    
-    const age = this.generateAge();
-    const gender = this.generateGender();
-    const healthSeverity = this.generateHealthSeverity();
-    const experience = this.generateExperience(age);
-    
-    // Проверяем структуру playersData и создаём значения по умолчанию
-    let trait = "Неизвестно";
-    let hobby = "Неизвестно";
-    let healthCondition = "Неизвестно";
-    let inventory = "Неизвестно";
-    let phobia = "Неизвестно";
-    let extra = "Неизвестно";
-    let professionName = "Неизвестно";
-    let professionDesc = "";
-    
-    // Если playersData существует и содержит нужные массивы
-    if (playersData) {
-        // Проверяем наличие traits
-        if (playersData.traits && Array.isArray(playersData.traits) && playersData.traits.length > 0) {
-            trait = playersData.traits[Math.floor(Math.random() * playersData.traits.length)];
-        } else {
-            console.warn('⚠️ traits array missing, using default');
-            const defaultTraits = ['Храбрый', 'Трусливый', 'Добрый', 'Злой', 'Хитрый', 'Честный'];
-            trait = defaultTraits[Math.floor(Math.random() * defaultTraits.length)];
-        }
-        
-        // Проверяем наличие hobby
-        if (playersData.hobby && Array.isArray(playersData.hobby) && playersData.hobby.length > 0) {
-            hobby = playersData.hobby[Math.floor(Math.random() * playersData.hobby.length)];
-        } else {
-            console.warn('⚠️ hobby array missing, using default');
-            const defaultHobbies = ['Рыбалка', 'Охота', 'Чтение', 'Спорт', 'Музыка', 'Рисование'];
-            hobby = defaultHobbies[Math.floor(Math.random() * defaultHobbies.length)];
-        }
-        
-        // Проверяем наличие health
-        if (playersData.health && Array.isArray(playersData.health) && playersData.health.length > 0) {
-            healthCondition = playersData.health[Math.floor(Math.random() * playersData.health.length)];
-        } else {
-            console.warn('⚠️ health array missing, using default');
-            const defaultHealth = ['Здоров', 'Диабет', 'Астма', 'Гипертония', 'Аллергия'];
-            healthCondition = defaultHealth[Math.floor(Math.random() * defaultHealth.length)];
-        }
-        
-        // Проверяем наличие inventory
-        if (playersData.inventory && Array.isArray(playersData.inventory) && playersData.inventory.length > 0) {
-            inventory = playersData.inventory[Math.floor(Math.random() * playersData.inventory.length)];
-        } else {
-            console.warn('⚠️ inventory array missing, using default');
-            const defaultInventory = ['Аптечка', 'Нож', 'Фонарик', 'Веревка', 'Спички', 'Консервы'];
-            inventory = defaultInventory[Math.floor(Math.random() * defaultInventory.length)];
-        }
-        
-        // Проверяем наличие phobia
-        if (playersData.phobia && Array.isArray(playersData.phobia) && playersData.phobia.length > 0) {
-            phobia = playersData.phobia[Math.floor(Math.random() * playersData.phobia.length)];
-        } else {
-            console.warn('⚠️ phobia array missing, using default');
-            const defaultPhobias = ['Клаустрофобия', 'Арахнофобия', 'Акрофобия', 'Нет фобий', 'Социофобия'];
-            phobia = defaultPhobias[Math.floor(Math.random() * defaultPhobias.length)];
-        }
-        
-        // Проверяем наличие extra
-        if (playersData.extra && Array.isArray(playersData.extra) && playersData.extra.length > 0) {
-            extra = playersData.extra[Math.floor(Math.random() * playersData.extra.length)];
-        } else {
-            console.warn('⚠️ extra array missing, using default');
-            const defaultExtras = ['Водительские права', 'Знание языков', 'Навыки выживания', 'Медицинское образование'];
-            extra = defaultExtras[Math.floor(Math.random() * defaultExtras.length)];
-        }
-        
-        // Проверяем наличие professions
-        if (playersData.professions && Array.isArray(playersData.professions) && playersData.professions.length > 0) {
-            const prof = playersData.professions[Math.floor(Math.random() * playersData.professions.length)];
-            professionName = prof.name || prof.title || "Неизвестно";
-            professionDesc = prof.description || "";
-        } else {
-            console.warn('⚠️ professions array missing, using default');
-            const defaultProfessions = ['Врач', 'Инженер', 'Учитель', 'Строитель', 'Военный', 'Полицейский'];
-            professionName = defaultProfessions[Math.floor(Math.random() * defaultProfessions.length)];
-        }
-    } else {
-        console.warn('⚠️ playersData is missing, using all defaults');
+    // ВСТРОЕННЫЕ ДАННЫЕ НА СЛУЧАЙ, ЕСЛИ playersData ПУСТОЙ
+    getDefaultData() {
+        return {
+            traits: [
+                "Храбрый", "Трусливый", "Агрессивный", "Спокойный", 
+                "Добрый", "Злой", "Хитрый", "Честный", "Лживый",
+                "Оптимист", "Пессимист", "Щедрый", "Жадный"
+            ],
+            hobby: [
+                "Рыбалка", "Охота", "Чтение", "Спорт", "Музыка", 
+                "Рисование", "Кулинария", "Садоводство", "Шахматы",
+                "Фотография", "Путешествия", "Коллекционирование"
+            ],
+            health: [
+                "Здоров", "Диабет", "Астма", "Гипертония", "Аллергия",
+                "Проблемы с сердцем", "Артрит", "Гастрит", "Мигрень"
+            ],
+            inventory: [
+                "Аптечка", "Нож", "Фонарик", "Веревка", "Спички", 
+                "Консервы", "Палатка", "Компас", "Топор", "Рация",
+                "Бинокль", "Карта", "Фляга"
+            ],
+            phobia: [
+                "Клаустрофобия", "Арахнофобия", "Акрофобия", "Нет фобий", 
+                "Социофобия", "Агорафобия", "Темнота", "Высота"
+            ],
+            extra: [
+                "Водительские права", "Знание языков", "Навыки выживания", 
+                "Медицинское образование", "Техническое образование", "Пилот",
+                "Дайвер", "Альпинист", "Охранник"
+            ],
+            professions: [
+                { name: "Врач", description: "Может лечить" },
+                { name: "Инженер", description: "Может чинить" },
+                { name: "Учитель", description: "Может обучать" },
+                { name: "Строитель", description: "Может строить" },
+                { name: "Военный", description: "Владеет оружием" },
+                { name: "Полицейский", description: "Знает законы" },
+                { name: "Программист", description: "Работа с ПК" },
+                { name: "Водитель", description: "Умеет водить" },
+                { name: "Повар", description: "Вкусно готовит" },
+                { name: "Фермер", description: "Умеет выращивать" }
+            ]
+        };
     }
-    
-    const character = {
-        age: age,
-        gender: gender,
-        body_type: this.generateBodyType(),
-        trait: trait,
-        profession: {
-            name: professionName,
-            description: professionDesc,
-            experience: experience
-        },
-        hobby: hobby,
-        health: {
-            condition: healthCondition,
-            severity: healthSeverity
-        },
-        inventory: inventory,
-        phobia: phobia,
-        extra: extra
-    };
-    
-    console.log('✅ Generated character:', character);
-    return character;
-}
+
+    generateCharacter(playersData) {
+        console.log('🎲 Generating character with data:', playersData);
+        
+        const age = this.generateAge();
+        const gender = this.generateGender();
+        const healthSeverity = this.generateHealthSeverity();
+        const experience = this.generateExperience(age);
+        
+        // Используем встроенные данные по умолчанию
+        const defaultData = this.getDefaultData();
+        
+        // Объединяем полученные данные с дефолтными
+        const data = {
+            traits: playersData?.traits?.length ? playersData.traits : defaultData.traits,
+            hobby: playersData?.hobby?.length ? playersData.hobby : defaultData.hobby,
+            health: playersData?.health?.length ? playersData.health : defaultData.health,
+            inventory: playersData?.inventory?.length ? playersData.inventory : defaultData.inventory,
+            phobia: playersData?.phobia?.length ? playersData.phobia : defaultData.phobia,
+            extra: playersData?.extra?.length ? playersData.extra : defaultData.extra,
+            professions: playersData?.professions?.length ? playersData.professions : defaultData.professions
+        };
+        
+        console.log('📊 Using data sources:', {
+            traits: data.traits.length,
+            hobby: data.hobby.length,
+            health: data.health.length,
+            inventory: data.inventory.length,
+            phobia: data.phobia.length,
+            extra: data.extra.length,
+            professions: data.professions.length
+        });
+        
+        // Выбираем случайные значения
+        const trait = data.traits[Math.floor(Math.random() * data.traits.length)];
+        const hobby = data.hobby[Math.floor(Math.random() * data.hobby.length)];
+        const healthCondition = data.health[Math.floor(Math.random() * data.health.length)];
+        const inventory = data.inventory[Math.floor(Math.random() * data.inventory.length)];
+        const phobia = data.phobia[Math.floor(Math.random() * data.phobia.length)];
+        const extra = data.extra[Math.floor(Math.random() * data.extra.length)];
+        
+        // Выбираем профессию
+        const profession = data.professions[Math.floor(Math.random() * data.professions.length)];
+        
+        const character = {
+            age: age,
+            gender: gender,
+            body_type: this.generateBodyType(),
+            trait: trait,
+            profession: {
+                name: profession.name || "Неизвестно",
+                description: profession.description || "",
+                experience: experience
+            },
+            hobby: hobby,
+            health: {
+                condition: healthCondition,
+                severity: healthSeverity
+            },
+            inventory: inventory,
+            phobia: phobia,
+            extra: extra
+        };
+        
+        console.log('✅ Generated character:', character);
+        return character;
+    }
 
     generateGameData(catastrophes, bunkers, bunkerSpaces) {
         const catastrophe = catastrophes[Math.floor(Math.random() * catastrophes.length)];
