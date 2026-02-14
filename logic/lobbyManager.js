@@ -143,7 +143,7 @@ async saveLobby(lobbyId, lobby) {
     }
 }
 
-   async startGame(lobbyId, gameDataFromClient) {
+  async startGame(lobbyId, gameDataFromClient) {
     console.log(`🎮 LobbyManager.startGame: ${lobbyId}`);
     
     const lobby = await this.getLobby(lobbyId);
@@ -156,16 +156,16 @@ async saveLobby(lobbyId, lobby) {
     for (const player of lobby.players) {
         player.character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
         player.revealedCharacteristics = [];
-        console.log(`Player ${player.nickname} character:`, player.character);
+        console.log(`✅ Generated character for ${player.nickname}:`, player.character);
     }
     
     // Проверяем пол
     await this.validateGenders(lobby.players);
     
-    // Места в бункере (50%, округление вниз)
+    // Места в бункере
     const bunkerSpaces = Math.floor(lobby.players.length * 0.5);
     
-    // Выбираем случайную катастрофу и бункер
+    // Данные игры
     const randomCatIndex = Math.floor(Math.random() * gameDataFromClient.catastrophes.length);
     const randomBunkerIndex = Math.floor(Math.random() * gameDataFromClient.bunkers.length);
     

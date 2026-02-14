@@ -16,9 +16,7 @@ class GameGenerator {
     }
 
     generateExperience(age) {
-        // Максимальный стаж зависит от возраста
         const maxExperience = age <= 24 ? Math.floor(age / 8) : Math.floor(age / 4);
-        // Стаж от 1 до maxExperience
         return Math.floor(Math.random() * maxExperience) + 1;
     }
 
@@ -33,26 +31,35 @@ class GameGenerator {
         const healthSeverity = this.generateHealthSeverity();
         const experience = this.generateExperience(age);
         
+        // Выбираем случайные значения из массивов
+        const trait = playersData.traits[Math.floor(Math.random() * playersData.traits.length)];
+        const hobby = playersData.hobby[Math.floor(Math.random() * playersData.hobby.length)];
+        const healthCondition = playersData.health[Math.floor(Math.random() * playersData.health.length)];
+        const inventory = playersData.inventory[Math.floor(Math.random() * playersData.inventory.length)];
+        const phobia = playersData.phobia[Math.floor(Math.random() * playersData.phobia.length)];
+        const extra = playersData.extra[Math.floor(Math.random() * playersData.extra.length)];
+        
+        // Выбираем профессию
         const profession = playersData.professions[Math.floor(Math.random() * playersData.professions.length)];
         
         return {
             age: age,
             gender: gender,
             body_type: this.generateBodyType(),
-            trait: playersData.traits[Math.floor(Math.random() * playersData.traits.length)],
+            trait: trait,
             profession: {
                 name: profession.name,
                 description: profession.description,
-                experience: experience // Добавляем стаж
+                experience: experience
             },
-            hobby: playersData.hobby[Math.floor(Math.random() * playersData.hobby.length)],
+            hobby: hobby,
             health: {
-                condition: playersData.health[Math.floor(Math.random() * playersData.health.length)],
-                severity: healthSeverity // Добавляем степень тяжести
+                condition: healthCondition,
+                severity: healthSeverity
             },
-            inventory: playersData.inventory[Math.floor(Math.random() * playersData.inventory.length)],
-            phobia: playersData.phobia[Math.floor(Math.random() * playersData.phobia.length)],
-            extra: playersData.extra[Math.floor(Math.random() * playersData.extra.length)]
+            inventory: inventory,
+            phobia: phobia,
+            extra: extra
         };
     }
 
