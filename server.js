@@ -92,6 +92,7 @@ io.on('connection', (socket) => {
     });
 
     // Старт игры
+// Старт игры
 socket.on('start_game', async ({ lobbyId, gameDataFromClient }) => {
     try {
         console.log(`📥 start_game: ${lobbyId}`);
@@ -99,8 +100,12 @@ socket.on('start_game', async ({ lobbyId, gameDataFromClient }) => {
         
         const lobby = await lobbyManager.startGame(lobbyId, gameDataFromClient);
         
-        io.to(lobbyId).emit('game_started', lobby.gameData);
-        io.to(lobbyId).emit('lobby_state', lobby);
+        // Отправляем события с небольшой задержкой
+        setTimeout(() => {
+            io.to(lobbyId).emit('game_started', lobby.gameData);
+            io.to(lobbyId).emit('lobby_state', lobby);
+            console.log(`✅ Game started events sent for ${lobbyId}`);
+        }, 500);
         
     } catch (error) {
         console.error('❌ start_game error:', error);
