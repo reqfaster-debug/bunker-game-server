@@ -118,20 +118,48 @@ socket.on('start_game', async ({ lobbyId, gameDataFromClient }) => {
     }
 });
 
-    // Раскрытие характеристики (ОДИН обработчик, а не два!)
-    socket.on('reveal_characteristic', async ({ lobbyId, playerId, field }) => {
-        try {
-            console.log(`🔓 reveal_characteristic: ${lobbyId}, ${playerId}, ${field}`);
-            const lobby = await lobbyManager.revealCharacteristic(lobbyId, playerId, field);
+// В server.js - исправленный обработчик
+socket.on('reveal_characteristic', async ({ lobbyId, playerId, field }) => {
+    try {
+        console.log(`🔓 reveal_characteristic: ${lobbyId}, ${playerId}, ${field}`);
+        
+        // Получаем лобби
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        
+        // Находим игрока
+        const player = lobby.players.find(p => p.id === playerId);
+        
+        if (player) {
+            // Инициализируем массив если его нет
+            if (!player.revealedCharacteristics) {
+                player.revealedCharacteristics = [];
+            }
             
-            io.to(lobbyId).emit('characteristic_revealed', { playerId, field });
-            io.to(lobbyId).emit('lobby_state', lobby);
-            
-        } catch (error) {
-            console.error('❌ reveal_characteristic error:', error);
-            socket.emit('error', { message: error.message });
+            // Добавляем характеристику если её ещё нет
+            if (!player.revealedCharacteristics.includes(field)) {
+                player.revealedCharacteristics.push(field);
+                
+                // Сохраняем лобби
+                await lobbyManager.saveLobby(lobbyId, lobby);
+                
+                console.log(`✅ Characteristic revealed and saved: ${playerId}.${field}`);
+                console.log(`📊 Player ${player.nickname} revealed:`, player.revealedCharacteristics);
+                
+                // Отправляем событие ВСЕМ в лобби
+                io.to(lobbyId).emit('characteristic_revealed', { 
+                    playerId, 
+                    field 
+                });
+                
+                // Отправляем обновленное состояние лобби
+                io.to(lobbyId).emit('lobby_state', lobby);
+            }
         }
-    });
+    } catch (error) {
+        console.error('❌ reveal_characteristic error:', error);
+        socket.emit('error', { message: error.message });
+    }
+});
 
     // Изгнать игрока
     socket.on('kick_player', async ({ lobbyId, hostId, playerId }) => {

@@ -274,34 +274,41 @@ async startGame(lobbyId, gameDataFromClient) {
             }
         }
     }
-
+// В lobbyManager.js
 async revealCharacteristic(lobbyId, playerId, field) {
     try {
-        console.log(`🔓 Reveal characteristic request: ${lobbyId}, ${playerId}, ${field}`);
+        console.log(`🔓 LobbyManager.revealCharacteristic: ${lobbyId}, ${playerId}, ${field}`);
+        
+        // Получаем лобби
         const lobby = await this.getLobby(lobbyId);
+        
+        // Находим игрока
         const player = lobby.players.find(p => p.id === playerId);
         
-        if (player) {
-            console.log(`Found player: ${player.nickname}`);
-            console.log(`Current revealedCharacteristics:`, player.revealedCharacteristics);
-            
-            if (!player.revealedCharacteristics) {
-                player.revealedCharacteristics = [];
-            }
-            if (!player.revealedCharacteristics.includes(field)) {
-                player.revealedCharacteristics.push(field);
-                await this.saveLobby(lobbyId, lobby);
-                console.log(`🔓 Characteristic revealed: ${playerId}.${field}`);
-                console.log(`Updated revealedCharacteristics:`, player.revealedCharacteristics);
-            } else {
-                console.log(`Characteristic already revealed`);
-            }
-        } else {
-            console.log(`Player not found: ${playerId}`);
+        if (!player) {
+            throw new Error('Player not found');
         }
+        
+        // Инициализируем массив если его нет
+        if (!player.revealedCharacteristics) {
+            player.revealedCharacteristics = [];
+        }
+        
+        // Добавляем характеристику если её ещё нет
+        if (!player.revealedCharacteristics.includes(field)) {
+            player.revealedCharacteristics.push(field);
+            
+            // Сохраняем лобби
+            await this.saveLobby(lobbyId, lobby);
+            
+            console.log(`✅ LobbyManager: Characteristic saved for ${player.nickname}:`, player.revealedCharacteristics);
+        } else {
+            console.log(`ℹ️ Characteristic already revealed: ${field}`);
+        }
+        
         return lobby;
     } catch (error) {
-        console.error(`❌ Error revealing characteristic:`, error);
+        console.error(`❌ LobbyManager.revealCharacteristic error:`, error);
         throw error;
     }
 }
