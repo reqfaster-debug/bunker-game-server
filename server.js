@@ -217,6 +217,206 @@ io.on('connection', (socket) => {
     });
 });
 
+
+// В секцию с обработчиками socket.on добавьте:
+
+// Изгнать игрока
+socket.on('kick_player', async ({ lobbyId, hostId, playerId }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может изгонять игроков');
+        }
+        lobby.players = lobby.players.filter(p => p.id !== playerId);
+        await lobbyManager.saveLobby(lobbyId, lobby);
+        io.to(lobbyId).emit('player_kicked', { playerId });
+        io.to(lobbyId).emit('lobby_state', lobby);
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Объявить игрока мертвым
+socket.on('set_player_dead', async ({ lobbyId, hostId, playerId }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может объявлять игроков мертвыми');
+        }
+        const player = lobby.players.find(p => p.id === playerId);
+        if (player) {
+            player.alive = false;
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            io.to(lobbyId).emit('player_killed', { playerId });
+            io.to(lobbyId).emit('lobby_state', lobby);
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Вернуть игрока к жизни
+socket.on('revive_player', async ({ lobbyId, hostId, playerId }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может возвращать игроков');
+        }
+        const player = lobby.players.find(p => p.id === playerId);
+        if (player) {
+            player.alive = true;
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            io.to(lobbyId).emit('lobby_state', lobby);
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Передать права хоста
+socket.on('transfer_host', async ({ lobbyId, currentHostId, newHostId }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== currentHostId) {
+            throw new Error('Только текущий хост может передавать права');
+        }
+        lobby.host_id = newHostId;
+        await lobbyManager.saveLobby(lobbyId, lobby);
+        io.to(lobbyId).emit('host_changed', { newHostId });
+        io.to(lobbyId).emit('lobby_state', lobby);
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Обновление характеристик с проверкой на критическое здоровье
+socket.on('update_character', async ({ lobbyId, hostId, playerId, updates }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может изменять характеристики');
+        }
+        const player = lobby.players.find(p => p.id === playerId);
+        if (player) {
+            // Обновляем character, сохраняя структуру
+            if (!player.character) player.character = {};
+            
+            // Обрабатываем обновления
+            Object.keys(updates).forEach(key => {
+                if (key === 'health') {
+                    // Для здоровья может быть объект или строка
+                    if (typeof updates[key] === 'string') {
+                        player.character.health = {
+                            condition: updates[key],
+                            severity: player.character.health?.severity || 'средняя'
+                        };
+                    } else {
+                        player.character.health = updates[key];
+                    }
+                    
+                    // Проверка на критическое здоровье
+                    if (player.character.health.severity === 'критическая') {
+                        player.alive = false;
+                        io.to(lobbyId).emit('health_critical', { playerId });
+                        io.to(lobbyId).emit('player_killed', { playerId });
+                    }
+                } else if (key === 'profession') {
+                    // Для профессии может быть объект или строка
+                    if (typeof updates[key] === 'string') {
+                        player.character.profession = {
+                            name: updates[key],
+                            description: '',
+                            experience: player.character.profession?.experience || 1
+                        };
+                    } else {
+                        player.character.profession = updates[key];
+                    }
+                } else {
+                    player.character[key] = updates[key];
+                }
+            });
+            
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            io.to(lobbyId).emit('character_updated', { playerId, updates });
+            io.to(lobbyId).emit('lobby_state', lobby);
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Улучшение здоровья
+socket.on('improve_health', async ({ lobbyId, hostId, playerId }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может улучшать здоровье');
+        }
+        const player = lobby.players.find(p => p.id === playerId);
+        if (player && player.character.health) {
+            const severity = player.character.health.severity;
+            const severities = ["критическая", "тяжелая", "средняя", "легкая"];
+            const currentIndex = severities.indexOf(severity);
+            if (currentIndex > 0) {
+                player.character.health.severity = severities[currentIndex - 1];
+                if (player.character.health.severity === "легкая") {
+                    player.character.health.condition = "Идеально здоров";
+                }
+            }
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            io.to(lobbyId).emit('lobby_state', lobby);
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Ухудшение здоровья
+socket.on('worsen_health', async ({ lobbyId, hostId, playerId }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может ухудшать здоровье');
+        }
+        const player = lobby.players.find(p => p.id === playerId);
+        if (player && player.character.health) {
+            const severity = player.character.health.severity;
+            const severities = ["легкая", "средняя", "тяжелая", "критическая"];
+            const currentIndex = severities.indexOf(severity);
+            if (currentIndex < severities.length - 1) {
+                player.character.health.severity = severities[currentIndex + 1];
+                if (player.character.health.severity === "критическая") {
+                    player.alive = false;
+                    io.to(lobbyId).emit('player_killed', { playerId });
+                }
+            }
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            io.to(lobbyId).emit('lobby_state', lobby);
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Добавление к характеристике
+socket.on('add_to_characteristic', async ({ lobbyId, hostId, playerId, field, value }) => {
+    try {
+        const lobby = await lobbyManager.getLobby(lobbyId);
+        if (lobby.host_id !== hostId) {
+            throw new Error('Только хост может изменять характеристики');
+        }
+        const player = lobby.players.find(p => p.id === playerId);
+        if (player && player.character) {
+            const currentValue = player.character[field] || '';
+            player.character[field] = currentValue ? `${currentValue}, ${value}` : value;
+            await lobbyManager.saveLobby(lobbyId, lobby);
+            io.to(lobbyId).emit('lobby_state', lobby);
+        }
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
 // Запуск сервера
 async function start() {
     try {
