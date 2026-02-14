@@ -27,12 +27,14 @@ class GameGenerator {
         const age = this.generateAge();
         const gender = this.generateGender();
         
+        const profession = playersData.professions[Math.floor(Math.random() * playersData.professions.length)];
+        
         return {
             age: age,
             gender: gender,
             body_type: this.generateBodyType(),
             trait: playersData.traits[Math.floor(Math.random() * playersData.traits.length)],
-            profession: playersData.professions[Math.floor(Math.random() * playersData.professions.length)],
+            profession: profession,
             experience_years: this.generateExperience(age),
             hobby: playersData.hobby[Math.floor(Math.random() * playersData.hobby.length)],
             health: playersData.health[Math.floor(Math.random() * playersData.health.length)],
@@ -42,20 +44,20 @@ class GameGenerator {
         };
     }
 
-generateGameData(catastrophes, bunkers, bunkerSpaces) {
-    // Выбираем случайную катастрофу и бункер
-    const catastrophe = catastrophes[Math.floor(Math.random() * catastrophes.length)];
-    const bunker = bunkers[Math.floor(Math.random() * bunkers.length)];
-    
-    // Добавляем информацию о местах в бункере
-    return {
-        catastrophe: catastrophe,  // catastrophe больше не содержит sound поле
-        bunker: {
-            ...bunker,
-            spaces: bunkerSpaces
-        }
-    };
-}
+    generateGameData(catastrophes, bunkers, bunkerSpaces) {
+        // Выбираем случайную катастрофу и бункер
+        const catastrophe = catastrophes[Math.floor(Math.random() * catastrophes.length)];
+        const bunker = bunkers[Math.floor(Math.random() * bunkers.length)];
+        
+        // Добавляем информацию о местах в бункере
+        return {
+            catastrophe: catastrophe,
+            bunker: {
+                ...bunker,
+                spaces: bunkerSpaces
+            }
+        };
+    }
 }
 
 module.exports = new GameGenerator();
