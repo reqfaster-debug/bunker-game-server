@@ -9,56 +9,46 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 
-// Настройка CORS для Socket.IO
+const PORT = process.env.PORT || 10000;  // Render использует динамический порт
+
+// Настройка CORS для Socket.IO - разрешаем ВСЕ источники для теста
 const io = new Server(server, {
     cors: {
-        origin: [
-            'https://bunker-game.netlify.app',  // Ваш Netlify URL
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-            'http://localhost:5500',
-            'http://127.0.0.1:5500'
-        ],
+        origin: '*',  // Временно разрешаем все источники
         methods: ['GET', 'POST'],
         credentials: true
     }
 });
 
-const PORT = process.env.PORT || 3000;
-
 // Middleware
 app.use(cors({
-    origin: [
-        'https://bunker-game.netlify.app',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:5500',
-        'http://127.0.0.1:5500'
-    ],
+    origin: '*',  // Временно разрешаем все источники
     credentials: true
 }));
+
 app.use(express.json());
 
-// Health check endpoint (для проверки работы сервера)
+// Убираем CSP заголовки
+app.use((req, res, next) => {
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('X-Content-Security-Policy');
+    next();
+});
+
+// Favicon
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+// Health check - ВАЖНО: этот endpoint должен быть доступен
 app.get('/health', (req, res) => {
+    console.log('Health check called from:', req.headers.origin);
     res.json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        message: 'Server is running' 
+        message: 'Server is running',
+        port: PORT,
+        headers: req.headers
     });
 });
-
-// Ensure data directory exists
-async function ensureDataDirectory() {
-    const dataDir = path.join(__dirname, 'data');
-    try {
-        await fs.access(dataDir);
-        console.log('Data directory exists');
-    } catch {
-        await fs.mkdir(dataDir);
-        console.log('Created data directory');
-    }
-}
 
 // Routes
 const lobbyRoutes = require('./routes/lobby');
@@ -67,29 +57,20 @@ const gameRoutes = require('./routes/game');
 app.use('/api/lobby', lobbyRoutes);
 app.use('/api/game', gameRoutes);
 
-// Socket.IO connection handling
+// Socket.IO
 const lobbyManager = require('./logic/lobbyManager');
 
 io.on('connection', (socket) => {
-    console.log('✅ Client connected:', socket.id, 'IP:', socket.handshake.address);
+    console.log('✅ Client connected:', socket.id, 'Origin:', socket.handshake.headers.origin);
 
     socket.on('join_lobby', async ({ lobbyId, playerId, nickname }) => {
-        console.log(`📥 join_lobby: ${lobbyId}, player: ${playerId}, nickname: ${nickname}`);
         try {
             socket.join(lobbyId);
             const player = await lobbyManager.joinLobby(lobbyId, playerId, nickname, socket.id);
-            console.log(`✅ Player joined: ${player.nickname} (${player.id})`);
-            
-            // Уведомляем всех в лобби
             io.to(lobbyId).emit('player_joined', player);
-            
-            // Отправляем текущее состояние лобби новому игроку
             const lobby = await lobbyManager.getLobby(lobbyId);
             socket.emit('lobby_state', lobby);
-            
-            console.log(`📤 Sent lobby_state to ${socket.id}`);
         } catch (error) {
-            console.error('❌ join_lobby error:', error.message);
             socket.emit('error', { message: error.message });
         }
     });
@@ -172,14 +153,24 @@ io.on('connection', (socket) => {
     });
 });
 
-// Start server
 async function start() {
-    await ensureDataDirectory();
-    server.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-        console.log(`📡 WebSocket server ready`);
-        console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    });
+    try {
+        // Создаем папку data если её нет
+        const dataDir = path.join(__dirname, 'data');
+        try {
+            await fs.access(dataDir);
+        } catch {
+            await fs.mkdir(dataDir);
+        }
+
+        server.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log(`📡 WebSocket server ready`);
+            console.log(`🔗 Health check: https://bunker-game-server.onrender.com/health`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+    }
 }
 
 start();
