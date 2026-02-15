@@ -9,7 +9,6 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-
 // Настройка CORS
 const io = socketIo(server, {
   cors: {
@@ -18,7 +17,6 @@ const io = socketIo(server, {
     credentials: true
   }
 });
-
 
 app.use(cors({
   origin: ["http://a1230559.xsph.ru", "http://localhost"],
@@ -117,7 +115,6 @@ async function loadData() {
 
 // ============ Функция расчета мест в бункере ============
 function calculateBunkerSlots(playerCount) {
-    // Места = округление вниз (playerCount / 2)
     return Math.floor(playerCount / 2);
 }
 // =======================================================
@@ -127,13 +124,8 @@ async function saveData() {
   try {
     await ensureDataDir();
 
-    // Сохраняем игры
     await fs.writeFile(GAMES_FILE, JSON.stringify(Array.from(games.entries()), null, 2));
-
-    // Сохраняем лобби
     await fs.writeFile(LOBBIES_FILE, JSON.stringify(Array.from(lobbies.entries()), null, 2));
-
-    // Сохраняем игроков
     await fs.writeFile(PLAYERS_FILE, JSON.stringify(Array.from(playersDataMap.entries()), null, 2));
 
     console.log('Данные сохранены');
@@ -144,13 +136,9 @@ async function saveData() {
 
 // Загружаем данные при старте
 loadData();
-
-// Сохраняем данные каждые 5 минут
 setInterval(saveData, 5 * 60 * 1000);
 
 // ================= FIX: Ensure creatorId and realtime room joining =================
-
-// Helper to safely emit gameUpdate with creatorId
 function emitGameUpdateFixed(gameId) {
   const game = games.get(gameId);
   if (!game) return;
@@ -160,13 +148,11 @@ function emitGameUpdateFixed(gameId) {
     creatorId: game.creator,
     disaster: game.disaster,
     bunker: game.bunker,
-    totalSlots: game.totalSlots // ДОБАВЛЕНО
+    totalSlots: game.totalSlots
   });
 }
 
-// Override existing emitGameUpdate if exists
 global.emitGameUpdate = emitGameUpdateFixed;
-
 // ================= END FIX =================
 
 // Массивы данных
@@ -209,21 +195,21 @@ const GAME_DATA = {
     traits: ['Храбрый', 'Трусливый', 'Добрый', 'Злой', 'Щедрый', 'Жадный'],
     hobbies: ['Рыбалка', 'Охота', 'Чтение', 'Спорт', 'Рисование', 'Музыка'],
     health: [
-  { name: 'Здоров' },  // без степени
-  { name: 'Диабет' },
-  { name: 'Астма' },
-  { name: 'Гипертония' },
-  { name: 'Аллергия' },
-  { name: 'Артрит' },
-  { name: 'Язва' },
-  { name: 'Гепатит' },
-  { name: 'Туберкулез' },
-  { name: 'ВИЧ' },
-  { name: 'Онкология' },
-  { name: 'Псориаз' },
-  { name: 'Эпилепсия' },
-  { name: 'Мигрень' }
-],
+      { name: 'Здоров' },
+      { name: 'Диабет' },
+      { name: 'Астма' },
+      { name: 'Гипертония' },
+      { name: 'Аллергия' },
+      { name: 'Артрит' },
+      { name: 'Язва' },
+      { name: 'Гепатит' },
+      { name: 'Туберкулез' },
+      { name: 'ВИЧ' },
+      { name: 'Онкология' },
+      { name: 'Псориаз' },
+      { name: 'Эпилепсия' },
+      { name: 'Мигрень' }
+    ],
     inventory: ['Аптечка', 'Нож', 'Фонарик', 'Топор', 'Веревка', 'Спички'],
     phobias: ['Клаустрофобия', 'Арахнофобия', 'Акрофобия'],
     extras: ['Водительские права', 'Знание языков', 'Навыки выживания'],
@@ -245,11 +231,9 @@ function generatePlayer(name, socketId) {
   const profession = GAME_DATA.characteristics.professions[Math.floor(Math.random() * GAME_DATA.characteristics.professions.length)];
   const experience = Math.floor(Math.random() * 30) + 1;
   
-  // Рандомное здоровье
   const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
   let healthValue = healthBase.name;
   
-  // Если не "Здоров", добавляем рандомную степень тяжести
   if (healthBase.name !== 'Здоров') {
     const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
     healthValue = `${healthBase.name} (${severity})`;
@@ -272,9 +256,8 @@ function generatePlayer(name, socketId) {
     }
   };
 
-  // Сохраняем в постоянное хранилище
   playersDataMap.set(player.id, player);
-  saveData(); // Сохраняем сразу
+  saveData();
 
   return player;
 }
@@ -294,13 +277,10 @@ function getRandomSeverity() {
 }
 
 function extractHealthName(healthString) {
-  // Из строки "Диабет (средняя)" получаем "Диабет"
   const match = healthString.match(/^([^(]+)/);
   return match ? match[1].trim() : healthString;
 }
 // ====================================================
-
-
 
 // API маршруты
 app.post('/api/create-lobby', (req, res) => {
@@ -309,7 +289,7 @@ app.post('/api/create-lobby', (req, res) => {
     lobbies.set(lobbyId, {
       id: lobbyId,
       players: [],
-      creator: null, // Будет заполнен при входе создателя
+      creator: null,
       created: Date.now()
     });
 
@@ -394,18 +374,14 @@ app.get('/api/check-player/:playerId', (req, res) => {
 io.on('connection', (socket) => {
   console.log('Новое подключение:', socket.id);
 
-  // ================= FIX: Allow client to join game room =================
   socket.on('joinGameRoomFixed', (gameId) => {
     socket.join(gameId);
     console.log(`Сокет ${socket.id} присоединился к комнате игры ${gameId}`);
   });
-  // ================= END FIX =================
 
-  // Восстановление соединения
   socket.on('reconnectPlayer', ({ playerId }) => {
     console.log('Попытка восстановления игрока:', playerId);
 
-    // Проверяем, есть ли уже активное соединение
     const existingSocket = [...activePlayers.entries()].find(([sid, p]) => p.id === playerId);
     if (existingSocket) {
       console.log('Игрок уже активен, отключаем старый socket');
@@ -417,30 +393,26 @@ io.on('connection', (socket) => {
       activePlayers.delete(oldSocketId);
     }
 
-    // Сначала проверяем в играх
     const gameId = playerGameMap.get(playerId);
     if (gameId) {
       const game = games.get(gameId);
       if (game) {
         const player = game.players.find(p => p.id === playerId);
         if (player) {
-          // Обновляем socketId
           player.socketId = socket.id;
           activePlayers.set(socket.id, player);
-
           socket.join(gameId);
 
-          // Отправляем сразу в игру с creatorId
-socket.emit('reconnectSuccess', {
-  type: 'game',
-  gameId: gameId,
-  disaster: game.disaster,
-  bunker: game.bunker,
-  totalSlots: game.totalSlots, // ДОБАВЛЕНО
-  player: player,
-  players: game.players,
-  creatorId: game.creator
-});
+          socket.emit('reconnectSuccess', {
+            type: 'game',
+            gameId: gameId,
+            disaster: game.disaster,
+            bunker: game.bunker,
+            totalSlots: game.totalSlots,
+            player: player,
+            players: game.players,
+            creatorId: game.creator
+          });
 
           console.log('Игрок восстановлен в игре:', player.name);
           return;
@@ -448,21 +420,16 @@ socket.emit('reconnectSuccess', {
       }
     }
 
-    // Затем проверяем в лобби
     for (const [lId, lobby] of lobbies) {
       const player = lobby.players.find(p => p.id === playerId);
       if (player) {
-        // Обновляем socketId
         player.socketId = socket.id;
         activePlayers.set(socket.id, player);
-
         socket.join(lId);
 
-        // Проверяем, началась ли игра
         if (lobby.gameId) {
           const game = games.get(lobby.gameId);
           if (game) {
-            // Отправляем сразу в игру с creatorId
             socket.emit('reconnectSuccess', {
               type: 'game',
               gameId: lobby.gameId,
@@ -470,7 +437,7 @@ socket.emit('reconnectSuccess', {
               bunker: game.bunker,
               player: player,
               players: game.players,
-              creatorId: game.creator  // ДОБАВЛЕНО
+              creatorId: game.creator
             });
             
             console.log('Игрок восстановлен в игре (через лобби):', player.name);
@@ -478,7 +445,6 @@ socket.emit('reconnectSuccess', {
           }
         }
 
-        // Если игры нет, отправляем в лобби
         socket.emit('reconnectSuccess', {
           type: 'lobby',
           lobbyId: lId,
@@ -486,7 +452,6 @@ socket.emit('reconnectSuccess', {
           players: lobby.players
         });
 
-        // Уведомляем всех об обновлении
         io.to(lId).emit('lobbyUpdate', { players: lobby.players });
 
         console.log('Игрок восстановлен в лобби:', player.name);
@@ -494,7 +459,6 @@ socket.emit('reconnectSuccess', {
       }
     }
 
-    // Если ничего не найдено
     socket.emit('reconnectFailed', { message: 'Игрок не найден' });
   });
 
@@ -512,18 +476,15 @@ socket.emit('reconnectSuccess', {
       return;
     }
 
-    // Проверяем, есть ли уже игрок с таким ником
     const existingPlayer = lobby.players.find(p => p.name === playerName);
 
     if (existingPlayer) {
       console.log('Игрок уже существует, обновляем соединение:', playerName);
 
-      // Обновляем socketId
       existingPlayer.socketId = socket.id;
       activePlayers.set(socket.id, existingPlayer);
       socket.join(lobbyId);
 
-      // Проверяем, началась ли уже игра
       if (lobby.gameId) {
         console.log('Игра уже началась, отправляем игрока сразу в игру');
         
@@ -535,7 +496,7 @@ socket.emit('reconnectSuccess', {
             bunker: game.bunker,
             player: existingPlayer,
             players: game.players,
-            creatorId: game.creator  // ДОБАВЛЕНО
+            creatorId: game.creator
           });
         } else {
           socket.emit('joinedLobby', { lobbyId, player: existingPlayer, isCreator: lobby.creator === existingPlayer.id });
@@ -549,12 +510,10 @@ socket.emit('reconnectSuccess', {
       return;
     }
 
-    // Если игрока нет - создаем нового
     const player = generatePlayer(playerName, socket.id);
     lobby.players.push(player);
     activePlayers.set(socket.id, player);
 
-    // Если это создатель (первый игрок), назначаем его создателем
     if (isCreator || lobby.players.length === 1) {
       lobby.creator = player.id;
       console.log('Назначен создатель лобби:', player.name);
@@ -575,7 +534,6 @@ socket.emit('reconnectSuccess', {
       return;
     }
 
-    // Проверяем, что игрок, который хочет начать игру, является создателем
     const player = lobby.players.find(p => p.socketId === socket.id);
     if (!player) {
       socket.emit('error', 'Игрок не найден в лобби');
@@ -593,31 +551,27 @@ socket.emit('reconnectSuccess', {
     }
 
     const gameId = uuidv4();
-const game = {
-  id: gameId,
-  disaster: GAME_DATA.disasters[Math.floor(Math.random() * GAME_DATA.disasters.length)],
-  bunker: GAME_DATA.bunkers[Math.floor(Math.random() * GAME_DATA.bunkers.length)],
-  players: lobby.players,
-  status: 'active',
-  created: Date.now(),
-  lobbyId: lobbyId,
-  creator: lobby.creator,
-  totalSlots: calculateBunkerSlots(lobby.players.length) // ДОБАВЛЕНО
-};
+    const game = {
+      id: gameId,
+      disaster: GAME_DATA.disasters[Math.floor(Math.random() * GAME_DATA.disasters.length)],
+      bunker: GAME_DATA.bunkers[Math.floor(Math.random() * GAME_DATA.bunkers.length)],
+      players: lobby.players,
+      status: 'active',
+      created: Date.now(),
+      lobbyId: lobbyId,
+      creator: lobby.creator,
+      totalSlots: calculateBunkerSlots(lobby.players.length)
+    };
 
     games.set(gameId, game);
-
-    // Обновляем статус лобби
     lobby.status = 'game_started';
     lobby.gameId = gameId;
 
-    // Сохраняем связь для каждого игрока
     game.players.forEach(player => {
       playerGameMap.set(player.id, gameId);
     });
 
     game.players.forEach(player => {
-      // ПРИСОЕДИНЯЕМ К КОМНАТЕ ИГРЫ (FIX)
       const playerSocket = io.sockets.sockets.get(player.socketId);
       if (playerSocket) {
         playerSocket.join(gameId);
@@ -627,16 +581,16 @@ const game = {
         gameId: game.id,
         disaster: game.disaster,
         bunker: game.bunker,
+        totalSlots: game.totalSlots,
         player: player,
         players: game.players,
         isCreator: player.id === lobby.creator,
-        creatorId: game.creator  // ДОБАВЛЕНО
+        creatorId: game.creator
       });
     });
 
     saveData();
     console.log('Игра создана:', gameId);
-    console.log('Лобби сохранено:', lobbyId);
   });
 
   socket.on('getGameData', ({ gameId }) => {
@@ -649,16 +603,16 @@ const game = {
     const player = game.players.find(p => p.socketId === socket.id);
     if (!player) return;
 
-socket.emit('gameData', {
-  gameId: game.id,
-  disaster: game.disaster,
-  bunker: game.bunker,
-  totalSlots: game.totalSlots, // ДОБАВЛЕНО
-  player: player,
-  players: game.players,
-  isCreator: player.id === game.creator,
-  creatorId: game.creator
-});
+    socket.emit('gameData', {
+      gameId: game.id,
+      disaster: game.disaster,
+      bunker: game.bunker,
+      totalSlots: game.totalSlots,
+      player: player,
+      players: game.players,
+      isCreator: player.id === game.creator,
+      creatorId: game.creator
+    });
   });
 
   socket.on('revealCharacteristic', ({ gameId, characteristic }) => {
@@ -694,14 +648,12 @@ socket.emit('gameData', {
       return;
     }
 
-    // Проверяем, что инициатор - создатель
     const initiator = game.players.find(p => p.socketId === socket.id);
     if (!initiator || initiator.id !== game.creator) {
       socket.emit('error', 'Только создатель может изгонять игроков');
       return;
     }
 
-    // Нельзя изгнать себя
     if (initiator.id === playerIdToKick) {
       socket.emit('error', 'Нельзя изгнать себя');
       return;
@@ -713,16 +665,11 @@ socket.emit('gameData', {
       return;
     }
 
-    // Добавляем статус "изгнан"
     playerToKick.status = 'kicked';
     playerToKick.statusMessage = 'изгнан';
 
-    // Обновляем игру в хранилище
     games.set(gameId, game);
-    
-    // ОТПРАВЛЯЕМ ОБНОВЛЕНИЕ ВСЕМ ИГРОКАМ В ИГРЕ (используем фикс функцию)
     emitGameUpdateFixed(gameId);
-
     saveData();
     console.log(`В игре ${gameId} игрок ${playerToKick.name} изгнан создателем ${initiator.name}`);
   });
@@ -734,14 +681,12 @@ socket.emit('gameData', {
       return;
     }
 
-    // Проверяем, что инициатор - создатель
     const initiator = game.players.find(p => p.socketId === socket.id);
     if (!initiator || initiator.id !== game.creator) {
       socket.emit('error', 'Только создатель может отмечать игроков мертвыми');
       return;
     }
 
-    // Нельзя отметить себя мертвым
     if (initiator.id === playerIdToMark) {
       socket.emit('error', 'Нельзя отметить себя мертвым');
       return;
@@ -753,16 +698,11 @@ socket.emit('gameData', {
       return;
     }
 
-    // Добавляем статус "мертв"
     playerToMark.status = 'dead';
     playerToMark.statusMessage = 'мертв';
 
-    // Обновляем игру в хранилище
     games.set(gameId, game);
-    
-    // ОТПРАВЛЯЕМ ОБНОВЛЕНИЕ ВСЕМ ИГРОКАМ В ИГРЕ (используем фикс функцию)
     emitGameUpdateFixed(gameId);
-
     saveData();
     console.log(`В игре ${gameId} игрок ${playerToMark.name} отмечен мертвым создателем ${initiator.name}`);
   });
@@ -774,7 +714,6 @@ socket.emit('gameData', {
       return;
     }
 
-    // Проверяем, что инициатор - создатель
     const initiator = game.players.find(p => p.socketId === socket.id);
     if (!initiator || initiator.id !== game.creator) {
       socket.emit('error', 'Только создатель может восстанавливать игроков');
@@ -787,16 +726,11 @@ socket.emit('gameData', {
       return;
     }
 
-    // Убираем статус
     delete playerToRestore.status;
     delete playerToRestore.statusMessage;
 
-    // Обновляем игру в хранилище
     games.set(gameId, game);
-    
-    // ОТПРАВЛЯЕМ ОБНОВЛЕНИЕ ВСЕМ ИГРОКАМ В ИГРЕ (используем фикс функцию)
     emitGameUpdateFixed(gameId);
-
     saveData();
     console.log(`В игре ${gameId} игрок ${playerToRestore.name} восстановлен создателем ${initiator.name}`);
   });
@@ -808,7 +742,6 @@ socket.emit('gameData', {
       return;
     }
 
-    // Проверяем, что инициатор - текущий создатель
     const initiator = game.players.find(p => p.socketId === socket.id);
     if (!initiator || initiator.id !== game.creator) {
       socket.emit('error', 'Только создатель может передавать права');
@@ -821,21 +754,102 @@ socket.emit('gameData', {
       return;
     }
 
-    // Передаем права
     game.creator = newCreatorId;
 
-    // Обновляем игру в хранилище
     games.set(gameId, game);
-    
-    // ОТПРАВЛЯЕМ ОБНОВЛЕНИЕ ВСЕМ ИГРОКАМ В ИГРЕ (используем фикс функцию)
     emitGameUpdateFixed(gameId);
-
-    // Отправляем персональное уведомление новому создателю
     io.to(newCreator.socketId).emit('youAreNowCreator');
 
     saveData();
     console.log(`В игре ${gameId} права создателя переданы от ${initiator.name} к ${newCreator.name}`);
   });
+
+  // ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ЗДОРОВЬЯ ============
+  socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
+    console.log('changeHealth called:', { gameId, playerId, action, diseaseName, severity });
+    
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может изменять здоровье');
+      return;
+    }
+
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    let newHealthValue;
+
+    switch (action) {
+      case 'random':
+        newHealthValue = getRandomHealth();
+        break;
+      
+      case 'select':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+        if (diseaseName === 'Здоров') {
+          newHealthValue = 'Здоров';
+        } else {
+          const sev = severity || getRandomSeverity();
+          newHealthValue = `${diseaseName} (${sev})`;
+        }
+        break;
+      
+      case 'add':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+        
+        const currentHealth = targetPlayer.characteristics.health.value;
+        let diseases = [];
+        
+        if (currentHealth && currentHealth !== 'Здоров') {
+          const parts = currentHealth.split(',').map(s => s.trim());
+          for (const part of parts) {
+            const match = part.match(/^(.+?)\s*\((\w+)\)$/);
+            if (match) {
+              diseases.push({
+                name: match[1].trim(),
+                severity: match[2]
+              });
+            }
+          }
+        }
+        
+        diseases.push({
+          name: diseaseName,
+          severity: severity || getRandomSeverity()
+        });
+        
+        newHealthValue = diseases.map(d => `${d.name} (${d.severity})`).join(', ');
+        break;
+      
+      default:
+        socket.emit('error', 'Неизвестное действие');
+        return;
+    }
+
+    targetPlayer.characteristics.health.value = newHealthValue;
+
+    games.set(gameId, game);
+    emitGameUpdateFixed(gameId);
+    saveData();
+    
+    console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
+  });
+  // ====================================================
 
   socket.on('disconnect', () => {
     console.log('Отключение:', socket.id);
@@ -845,220 +859,7 @@ socket.emit('gameData', {
       activePlayers.delete(socket.id);
     }
   });
-
-
-// ============ НОВЫЕ ОБРАБОТЧИКИ ============
-socket.on('improveHealth', ({ gameId, playerId }) => {
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  // Проверяем, что инициатор - создатель
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может улучшать здоровье');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  const currentHealth = targetPlayer.characteristics.health.value;
-  
-  // Если здоров - ничего не делаем
-  if (currentHealth === 'Здоров') {
-    socket.emit('error', 'Игрок уже здоров');
-    return;
-  }
-
-  // Парсим текущее здоровье
-  const healthMatch = currentHealth.match(/^(.+?)\s*\((\w+)\)$/);
-  if (!healthMatch) {
-    socket.emit('error', 'Ошибка формата здоровья');
-    return;
-  }
-
-  const diseaseName = healthMatch[1];
-  const currentSeverity = healthMatch[2];
-  
-  // Определяем индекс текущей степени
-  const severityIndex = HEALTH_SEVERITIES.indexOf(currentSeverity);
-  
-  // Улучшаем (уменьшаем тяжесть)
-  if (severityIndex > 0) {
-    // Переводим на менее тяжелую степень
-    const newSeverity = HEALTH_SEVERITIES[severityIndex - 1];
-    targetPlayer.characteristics.health.value = `${diseaseName} (${newSeverity})`;
-  } else {
-    // Была легкая - делаем здоровым
-    targetPlayer.characteristics.health.value = 'Здоров';
-  }
-
-  // Обновляем игру
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
-  
-  console.log(`Создатель улучшил здоровье игрока ${targetPlayer.name}`);
 });
-
-socket.on('worsenHealth', ({ gameId, playerId }) => {
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  // Проверяем, что инициатор - создатель
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может ухудшать здоровье');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  const currentHealth = targetPlayer.characteristics.health.value;
-  
-  // Если здоров - даем случайную болезнь с легкой степенью
-  if (currentHealth === 'Здоров') {
-    const randomDisease = GAME_DATA.characteristics.health.filter(h => h.name !== 'Здоров');
-    const disease = randomDisease[Math.floor(Math.random() * randomDisease.length)];
-    targetPlayer.characteristics.health.value = `${disease.name} (легкая)`;
-  } else {
-    // Парсим текущее здоровье
-    const healthMatch = currentHealth.match(/^(.+?)\s*\((\w+)\)$/);
-    if (!healthMatch) {
-      socket.emit('error', 'Ошибка формата здоровья');
-      return;
-    }
-
-    const diseaseName = healthMatch[1];
-    const currentSeverity = healthMatch[2];
-    
-    // Определяем индекс текущей степени
-    const severityIndex = HEALTH_SEVERITIES.indexOf(currentSeverity);
-    
-    // Ухудшаем (увеличиваем тяжесть)
-    if (severityIndex < HEALTH_SEVERITIES.length - 1) {
-      const newSeverity = HEALTH_SEVERITIES[severityIndex + 1];
-      targetPlayer.characteristics.health.value = `${diseaseName} (${newSeverity})`;
-    } else {
-      // Уже критическая - ничего не делаем
-      socket.emit('error', 'Достигнута максимальная степень тяжести');
-      return;
-    }
-  }
-
-  // Обновляем игру
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
-  
-  console.log(`Создатель ухудшил здоровье игрока ${targetPlayer.name}`);
-});
-
-socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  // Проверяем, что инициатор - создатель
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может изменять здоровье');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  let newHealthValue;
-
-  switch (action) {
-    case 'random':
-      newHealthValue = getRandomHealth();
-      break;
-    
-    case 'select':
-      if (!diseaseName) {
-        socket.emit('error', 'Не выбрана болезнь');
-        return;
-      }
-      if (diseaseName === 'Здоров') {
-        newHealthValue = 'Здоров';
-      } else {
-        const severity = severity || getRandomSeverity();
-        newHealthValue = `${diseaseName} (${severity})`;
-      }
-      break;
-    
-    case 'add':
-      if (!diseaseName) {
-        socket.emit('error', 'Не выбрана болезнь');
-        return;
-      }
-      
-      const currentHealth = targetPlayer.characteristics.health.value;
-      let diseases = [];
-      
-      // Если текущее здоровье не "Здоров" и не пустое, парсим существующие болезни
-      if (currentHealth !== 'Здоров' && currentHealth) {
-        // Простой парсинг - предполагаем формат "Болезнь1 (степень), Болезнь2 (степень)"
-        const diseaseMatches = currentHealth.matchAll(/([^,]+?)\s*\((\w+)\)/g);
-        for (const match of diseaseMatches) {
-          diseases.push({
-            name: match[1].trim(),
-            severity: match[2]
-          });
-        }
-      }
-      
-      // Добавляем новую болезнь
-      diseases.push({
-        name: diseaseName,
-        severity: severity || getRandomSeverity()
-      });
-      
-      // Формируем строку со всеми болезнями
-      newHealthValue = diseases.map(d => `${d.name} (${d.severity})`).join(', ');
-      break;
-    
-    default:
-      socket.emit('error', 'Неизвестное действие');
-      return;
-  }
-
-  targetPlayer.characteristics.health.value = newHealthValue;
-
-  // Обновляем игру
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
-  
-  console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
-});
-// ====================================================
-
-
-});
-
-
-
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
