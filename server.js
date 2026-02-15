@@ -797,3 +797,44 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
+
+// ================= FIX: Ensure creatorId and realtime room joining =================
+
+// Helper to safely emit gameUpdate with creatorId
+function emitGameUpdateFixed(gameId) {
+  const game = games.get(gameId);
+  if (!game) return;
+  
+  io.to(gameId).emit('gameUpdate', {
+    players: game.players,
+    creatorId: game.creator,
+    disaster: game.disaster,
+    bunker: game.bunker
+  });
+}
+
+// Override existing emitGameUpdate if exists
+global.emitGameUpdate = emitGameUpdateFixed;
+
+// Ensure all connected players are always in their game room
+io.on('connection', (socket) => {
+
+  socket.on('joinGameRoomFixed', (gameId) => {
+    socket.join(gameId);
+  });
+
+});
+
+// Patch reconnectSuccess to always include creatorId
+const originalEmit = io.emit.bind(io);
+io.emitFixed = function(event, data) {
+  if (event === 'reconnectSuccess' && data && data.gameId) {
+    const game = games.get(data.gameId);
+    if (game) {
+      data.creatorId = game.creator;
+    }
+  }
+  return originalEmit(event, data);
+};
+
+// ================= END FIX =================
