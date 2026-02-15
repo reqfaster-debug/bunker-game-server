@@ -25,6 +25,40 @@ app.use(cors({
 
 app.use(express.json());
 
+// ============ ВАЖНО: Объявляем переменные ДО их использования ============
+// Хранилища данных
+let games = new Map();        // Активные игры
+let lobbies = new Map();      // Лобби
+const activePlayers = new Map(); // Активные игроки (socketId -> playerData)
+let playersDataMap = new Map();  // ПОСТОЯННОЕ хранение данных игроков (playerId -> playerData)
+const playerGameMap = new Map();  // Связь playerId -> gameId
+// =========================================================================
+
+// Отключаем CSP для фавиконки
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.socket.io; style-src 'self' 'unsafe-inline';");
+  next();
+});
+
+// Отдаем пустую фавиконку
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
+// Корневой маршрут
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Bunker Game Server is running',
+    time: new Date().toISOString(),
+    stats: {
+      games: games.size,
+      lobbies: lobbies.size,
+      players: playersDataMap.size
+    }
+  });
+});
+
 // Пути к файлам для хранения данных
 const DATA_DIR = path.join(__dirname, 'data');
 const GAMES_FILE = path.join(DATA_DIR, 'games.json');
@@ -98,13 +132,6 @@ async function saveData() {
     console.error('Ошибка сохранения данных:', error);
   }
 }
-
-// Хранилища данных
-let games = new Map();        // Активные игры
-let lobbies = new Map();      // Лобби
-const activePlayers = new Map(); // Активные игроки (socketId -> playerData)
-let playersDataMap = new Map();  // ПОСТОЯННОЕ хранение данных игроков (playerId -> playerData)
-const playerGameMap = new Map();  // Связь playerId -> gameId
 
 // Загружаем данные при старте
 loadData();
@@ -209,7 +236,7 @@ app.post('/api/create-lobby', (req, res) => {
       created: Date.now()
     });
 
-    saveData(); // Сохраняем изменения
+    saveData();
     console.log('Лобби создано:', lobbyId);
     res.json({ lobbyId });
   } catch (error) {
@@ -233,7 +260,6 @@ app.get('/api/check-player/:playerId', (req, res) => {
   try {
     const { playerId } = req.params;
 
-    // Проверяем в играх
     const gameId = playerGameMap.get(playerId);
     if (gameId) {
       const game = games.get(gameId);
@@ -244,7 +270,7 @@ app.get('/api/check-player/:playerId', (req, res) => {
             active: true,
             type: 'game',
             gameId: gameId,
-            lobbyId: game.lobbyId, // Теперь есть lobbyId
+            lobbyId: game.lobbyId,
             player: player,
             gameData: {
               disaster: game.disaster,
@@ -256,7 +282,6 @@ app.get('/api/check-player/:playerId', (req, res) => {
       }
     }
 
-    // Проверяем в лобби (даже если игра началась)
     for (const [lId, lobby] of lobbies) {
       const player = lobby.players.find(p => p.id === playerId);
       if (player) {
@@ -271,7 +296,6 @@ app.get('/api/check-player/:playerId', (req, res) => {
       }
     }
 
-    // Проверяем в постоянном хранилище
     const savedPlayer = playersDataMap.get(playerId);
     if (savedPlayer) {
       return res.json({
@@ -289,18 +313,13 @@ app.get('/api/check-player/:playerId', (req, res) => {
   }
 });
 
-
 // Socket.IO
 io.on('connection', (socket) => {
   console.log('Новое подключение:', socket.id);
 
-
-
-  // Восстановление соединения
   socket.on('reconnectPlayer', ({ playerId }) => {
     console.log('Попытка восстановления игрока:', playerId);
 
-    // Проверяем, есть ли уже активное соединение
     const existingSocket = [...activePlayers.entries()].find(([sid, p]) => p.id === playerId);
     if (existingSocket) {
       console.log('Игрок уже активен, отключаем старый socket');
@@ -312,17 +331,14 @@ io.on('connection', (socket) => {
       activePlayers.delete(oldSocketId);
     }
 
-    // Сначала проверяем в играх
     const gameId = playerGameMap.get(playerId);
     if (gameId) {
       const game = games.get(gameId);
       if (game) {
         const player = game.players.find(p => p.id === playerId);
         if (player) {
-          // Обновляем socketId
           player.socketId = socket.id;
           activePlayers.set(socket.id, player);
-
           socket.join(gameId);
 
           socket.emit('reconnectSuccess', {
@@ -340,14 +356,11 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Затем проверяем в лобби
     for (const [lId, lobby] of lobbies) {
       const player = lobby.players.find(p => p.id === playerId);
       if (player) {
-        // Обновляем socketId
         player.socketId = socket.id;
         activePlayers.set(socket.id, player);
-
         socket.join(lId);
 
         socket.emit('reconnectSuccess', {
@@ -357,31 +370,15 @@ io.on('connection', (socket) => {
           players: lobby.players
         });
 
-        // Уведомляем всех об обновлении
         io.to(lId).emit('lobbyUpdate', { players: lobby.players });
-
         console.log('Игрок восстановлен в лобби:', player.name);
         return;
       }
     }
 
-    // Если ничего не найдено, пробуем найти в сохраненных данных
-    const savedPlayer = playersDataMap.get(playerId);
-    if (savedPlayer) {
-      // Ищем лобби, где мог быть этот игрок
-      for (const [lId, lobby] of lobbies) {
-        if (lobby.players.some(p => p.id === playerId)) {
-          // Уже должно было найтись выше
-          continue;
-        }
-      }
-    }
-
-    // Если ничего не найдено
     socket.emit('reconnectFailed', { message: 'Игрок не найден' });
   });
 
-  // При новом подключении проверяем, не активен ли уже игрок
   socket.on('checkPlayerActive', ({ playerId }) => {
     const isActive = [...activePlayers.values()].some(p => p.id === playerId);
     socket.emit('playerActiveCheck', { active: isActive });
@@ -396,30 +393,23 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Проверяем, есть ли уже игрок с таким ником
     const existingPlayer = lobby.players.find(p => p.name === playerName);
 
     if (existingPlayer) {
       console.log('Игрок уже существует, обновляем соединение:', playerName);
 
-      // Обновляем socketId у существующего игрока
       existingPlayer.socketId = socket.id;
       activePlayers.set(socket.id, existingPlayer);
-
       socket.join(lobbyId);
       socket.emit('joinedLobby', { lobbyId, player: existingPlayer });
-
-      // Уведомляем всех об обновлении списка
       io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
 
       return;
     }
 
-    // Если игрока нет - создаем нового
     const player = generatePlayer(playerName, socket.id);
     lobby.players.push(player);
     activePlayers.set(socket.id, player);
-
     socket.join(lobbyId);
     socket.emit('joinedLobby', { lobbyId, player });
     io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
@@ -445,16 +435,13 @@ io.on('connection', (socket) => {
       players: lobby.players,
       status: 'active',
       created: Date.now(),
-      lobbyId: lobbyId // Сохраняем ссылку на лобби
+      lobbyId: lobbyId
     };
 
     games.set(gameId, game);
-
-    // Обновляем статус лобби, но НЕ УДАЛЯЕМ его
     lobby.status = 'game_started';
     lobby.gameId = gameId;
 
-    // Сохраняем связь для каждого игрока
     game.players.forEach(player => {
       playerGameMap.set(player.id, gameId);
     });
@@ -469,7 +456,7 @@ io.on('connection', (socket) => {
       });
     });
 
-    saveData(); // Сохраняем изменения
+    saveData();
     console.log('Игра создана:', gameId);
     console.log('Лобби сохранено:', lobbyId);
   });
@@ -483,7 +470,6 @@ io.on('connection', (socket) => {
 
     player.characteristics[characteristic].revealed = true;
 
-    // Обновляем в постоянном хранилище
     const savedPlayer = playersDataMap.get(player.id);
     if (savedPlayer) {
       savedPlayer.characteristics[characteristic].revealed = true;
@@ -498,7 +484,7 @@ io.on('connection', (socket) => {
       });
     });
 
-    saveData(); // Сохраняем изменения
+    saveData();
   });
 
   socket.on('disconnect', () => {
@@ -507,7 +493,6 @@ io.on('connection', (socket) => {
     if (player) {
       console.log('Игрок отключился:', player.name);
       activePlayers.delete(socket.id);
-      // Данные игрока остаются в playersDataMap для восстановления
     }
   });
 });
