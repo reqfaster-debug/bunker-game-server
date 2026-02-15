@@ -578,6 +578,160 @@ socket.on('joinLobby', ({ lobbyId, playerName, isCreator }) => {
       activePlayers.delete(socket.id);
     }
   });
+
+
+// После существующих socket.on обработчиков, добавить:
+
+socket.on('kickPlayer', ({ lobbyId, playerIdToKick }) => {
+  const lobby = lobbies.get(lobbyId);
+  if (!lobby) {
+    socket.emit('error', 'Лобби не найдено');
+    return;
+  }
+
+  // Проверяем, что инициатор - создатель
+  const initiator = lobby.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== lobby.creator) {
+    socket.emit('error', 'Только создатель может изгонять игроков');
+    return;
+  }
+
+  // Нельзя изгнать себя
+  if (initiator.id === playerIdToKick) {
+    socket.emit('error', 'Нельзя изгнать себя');
+    return;
+  }
+
+  const playerToKick = lobby.players.find(p => p.id === playerIdToKick);
+  if (!playerToKick) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  // Добавляем статус "изгнан"
+  playerToKick.status = 'kicked';
+  playerToKick.statusMessage = 'изгнан';
+
+  // Уведомляем всех об обновлении
+  io.to(lobbyId).emit('lobbyUpdate', { 
+    players: lobby.players, 
+    creatorId: lobby.creator 
+  });
+
+  saveData();
+  console.log(`Игрок ${playerToKick.name} изгнан создателем ${initiator.name}`);
+});
+
+socket.on('markDead', ({ lobbyId, playerIdToMark }) => {
+  const lobby = lobbies.get(lobbyId);
+  if (!lobby) {
+    socket.emit('error', 'Лобби не найдено');
+    return;
+  }
+
+  // Проверяем, что инициатор - создатель
+  const initiator = lobby.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== lobby.creator) {
+    socket.emit('error', 'Только создатель может отмечать игроков мертвыми');
+    return;
+  }
+
+  // Нельзя отметить себя мертвым
+  if (initiator.id === playerIdToMark) {
+    socket.emit('error', 'Нельзя отметить себя мертвым');
+    return;
+  }
+
+  const playerToMark = lobby.players.find(p => p.id === playerIdToMark);
+  if (!playerToMark) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  // Добавляем статус "мертв"
+  playerToMark.status = 'dead';
+  playerToMark.statusMessage = 'мертв';
+
+  // Уведомляем всех об обновлении
+  io.to(lobbyId).emit('lobbyUpdate', { 
+    players: lobby.players, 
+    creatorId: lobby.creator 
+  });
+
+  saveData();
+  console.log(`Игрок ${playerToMark.name} отмечен мертвым создателем ${initiator.name}`);
+});
+
+socket.on('restorePlayer', ({ lobbyId, playerIdToRestore }) => {
+  const lobby = lobbies.get(lobbyId);
+  if (!lobby) {
+    socket.emit('error', 'Лобби не найдено');
+    return;
+  }
+
+  // Проверяем, что инициатор - создатель
+  const initiator = lobby.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== lobby.creator) {
+    socket.emit('error', 'Только создатель может восстанавливать игроков');
+    return;
+  }
+
+  const playerToRestore = lobby.players.find(p => p.id === playerIdToRestore);
+  if (!playerToRestore) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  // Убираем статус
+  delete playerToRestore.status;
+  delete playerToRestore.statusMessage;
+
+  // Уведомляем всех об обновлении
+  io.to(lobbyId).emit('lobbyUpdate', { 
+    players: lobby.players, 
+    creatorId: lobby.creator 
+  });
+
+  saveData();
+  console.log(`Игрок ${playerToRestore.name} восстановлен создателем ${initiator.name}`);
+});
+
+socket.on('transferCreator', ({ lobbyId, newCreatorId }) => {
+  const lobby = lobbies.get(lobbyId);
+  if (!lobby) {
+    socket.emit('error', 'Лобби не найдено');
+    return;
+  }
+
+  // Проверяем, что инициатор - текущий создатель
+  const initiator = lobby.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== lobby.creator) {
+    socket.emit('error', 'Только создатель может передавать права');
+    return;
+  }
+
+  const newCreator = lobby.players.find(p => p.id === newCreatorId);
+  if (!newCreator) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  // Передаем права
+  lobby.creator = newCreatorId;
+
+  // Уведомляем всех об обновлении
+  io.to(lobbyId).emit('lobbyUpdate', { 
+    players: lobby.players, 
+    creatorId: lobby.creator 
+  });
+
+  // Отправляем персональное уведомление новому создателю
+  io.to(newCreator.socketId).emit('youAreNowCreator');
+
+  saveData();
+  console.log(`Права создателя переданы от ${initiator.name} к ${newCreator.name}`);
+});
+  
 });
 
 const PORT = process.env.PORT || 3000;
