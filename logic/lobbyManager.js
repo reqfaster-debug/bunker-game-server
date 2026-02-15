@@ -195,7 +195,6 @@ async saveLobby(lobbyId, lobby) {
         throw new Error('Failed to save lobby');
     }
 }
-
 async startGame(lobbyId, gameDataFromClient) {
     console.log(`🎮 LobbyManager.startGame: ${lobbyId}`);
     console.log('🔥 playersData received:', JSON.stringify(gameDataFromClient.playersData, null, 2));
@@ -208,47 +207,77 @@ async startGame(lobbyId, gameDataFromClient) {
     
     console.log(`👥 Generating characters for ${lobby.players.length} players...`);
     
+    // ВСТРОЕННЫЕ ДАННЫЕ НА ВСЯКИЙ СЛУЧАЙ
+    const FALLBACK_DATA = {
+        traits: ["Храбрый", "Трусливый", "Агрессивный", "Спокойный", "Добрый", "Злой"],
+        hobbies: ["Рыбалка", "Охота", "Чтение", "Спорт", "Музыка", "Рисование"],
+        healthConditions: ["Здоров", "Диабет", "Астма", "Гипертония", "Аллергия"],
+        inventory: ["Аптечка", "Нож", "Фонарик", "Веревка", "Спички", "Консервы"],
+        phobias: ["Клаустрофобия", "Арахнофобия", "Акрофобия", "Нет фобий"],
+        extras: ["Водительские права", "Знание языков", "Навыки выживания", "Медицинское образование"],
+        professions: [
+            { name: "Врач", description: "Может лечить" },
+            { name: "Инженер", description: "Может чинить" },
+            { name: "Учитель", description: "Может обучать" },
+            { name: "Строитель", description: "Может строить" }
+        ],
+        bodyTypes: ["Худощавое", "Атлетическое", "Среднее", "Плотное"],
+        genders: ["Мужской", "Женский"]
+    };
+    
     // Генерируем персонажей
     for (const player of lobby.players) {
-        const character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
+        // Пытаемся сгенерировать через gameGenerator
+        let character = gameGenerator.generateCharacter(gameDataFromClient.playersData);
         
-        // ВАЖНО: Проверяем и заполняем пустые поля
-        if (!character.gender || character.gender.trim() === '') {
-            character.gender = ["Мужской", "Женский"][Math.floor(Math.random() * 2)];
+        // ЕСЛИ ДАННЫЕ ПУСТЫЕ - ЗАПОЛНЯЕМ ВРУЧНУЮ
+        if (!character.gender || character.gender === '?' || character.gender.trim() === '') {
+            character.gender = FALLBACK_DATA.genders[Math.floor(Math.random() * FALLBACK_DATA.genders.length)];
         }
-        if (!character.body_type || character.body_type.trim() === '') {
-            character.body_type = ["Худощавое", "Атлетическое", "Среднее", "Плотное"][Math.floor(Math.random() * 4)];
+        
+        if (!character.body_type || character.body_type === '?' || character.body_type.trim() === '') {
+            character.body_type = FALLBACK_DATA.bodyTypes[Math.floor(Math.random() * FALLBACK_DATA.bodyTypes.length)];
         }
-        if (!character.trait || character.trait.trim() === '') {
-            character.trait = ["Храбрый", "Трусливый", "Добрый", "Злой", "Хитрый"][Math.floor(Math.random() * 5)];
+        
+        if (!character.trait || character.trait === '?' || character.trait.trim() === '') {
+            character.trait = FALLBACK_DATA.traits[Math.floor(Math.random() * FALLBACK_DATA.traits.length)];
         }
-        if (!character.profession || !character.profession.name) {
+        
+        if (!character.profession || !character.profession.name || character.profession.name === '?') {
+            const prof = FALLBACK_DATA.professions[Math.floor(Math.random() * FALLBACK_DATA.professions.length)];
             character.profession = {
-                name: ["Врач", "Инженер", "Учитель", "Строитель", "Военный"][Math.floor(Math.random() * 5)],
+                name: prof.name,
+                description: prof.description,
                 experience: Math.floor(Math.random() * 20) + 1
             };
         }
-        if (!character.hobby || character.hobby.trim() === '') {
-            character.hobby = ["Рыбалка", "Охота", "Чтение", "Спорт", "Музыка"][Math.floor(Math.random() * 5)];
+        
+        if (!character.hobby || character.hobby === '?' || character.hobby.trim() === '') {
+            character.hobby = FALLBACK_DATA.hobbies[Math.floor(Math.random() * FALLBACK_DATA.hobbies.length)];
         }
-        if (!character.health || !character.health.condition) {
+        
+        if (!character.health || !character.health.condition || character.health.condition === '?') {
             character.health = {
-                condition: ["Здоров", "Диабет", "Астма", "Гипертония"][Math.floor(Math.random() * 4)],
+                condition: FALLBACK_DATA.healthConditions[Math.floor(Math.random() * FALLBACK_DATA.healthConditions.length)],
                 severity: ["легкая", "средняя", "тяжелая"][Math.floor(Math.random() * 3)]
             };
         }
-        if (!character.inventory || character.inventory.trim() === '') {
-            character.inventory = ["Аптечка", "Нож", "Фонарик", "Веревка", "Спички"][Math.floor(Math.random() * 5)];
+        
+        if (!character.inventory || character.inventory === '?' || character.inventory.trim() === '') {
+            character.inventory = FALLBACK_DATA.inventory[Math.floor(Math.random() * FALLBACK_DATA.inventory.length)];
         }
-        if (!character.phobia || character.phobia.trim() === '') {
-            character.phobia = ["Клаустрофобия", "Арахнофобия", "Акрофобия", "Нет фобий"][Math.floor(Math.random() * 4)];
+        
+        if (!character.phobia || character.phobia === '?' || character.phobia.trim() === '') {
+            character.phobia = FALLBACK_DATA.phobias[Math.floor(Math.random() * FALLBACK_DATA.phobias.length)];
         }
-        if (!character.extra || character.extra.trim() === '') {
-            character.extra = ["Водительские права", "Знание языков", "Навыки выживания"][Math.floor(Math.random() * 3)];
+        
+        if (!character.extra || character.extra === '?' || character.extra.trim() === '') {
+            character.extra = FALLBACK_DATA.extras[Math.floor(Math.random() * FALLBACK_DATA.extras.length)];
         }
         
         player.character = character;
         player.revealedCharacteristics = [];
+        
         console.log(`✅ Generated character for ${player.nickname}:`, {
             age: character.age,
             gender: character.gender,
