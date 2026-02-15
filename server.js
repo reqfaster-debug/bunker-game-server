@@ -317,67 +317,99 @@ app.get('/api/check-player/:playerId', (req, res) => {
 io.on('connection', (socket) => {
   console.log('Новое подключение:', socket.id);
 
-  socket.on('reconnectPlayer', ({ playerId }) => {
-    console.log('Попытка восстановления игрока:', playerId);
+// Восстановление соединения
+socket.on('reconnectPlayer', ({ playerId }) => {
+  console.log('Попытка восстановления игрока:', playerId);
 
-    const existingSocket = [...activePlayers.entries()].find(([sid, p]) => p.id === playerId);
-    if (existingSocket) {
-      console.log('Игрок уже активен, отключаем старый socket');
-      const [oldSocketId] = existingSocket;
-      const oldSocket = io.sockets.sockets.get(oldSocketId);
-      if (oldSocket) {
-        oldSocket.disconnect();
-      }
-      activePlayers.delete(oldSocketId);
+  // Проверяем, есть ли уже активное соединение
+  const existingSocket = [...activePlayers.entries()].find(([sid, p]) => p.id === playerId);
+  if (existingSocket) {
+    console.log('Игрок уже активен, отключаем старый socket');
+    const [oldSocketId] = existingSocket;
+    const oldSocket = io.sockets.sockets.get(oldSocketId);
+    if (oldSocket) {
+      oldSocket.disconnect();
     }
+    activePlayers.delete(oldSocketId);
+  }
 
-    const gameId = playerGameMap.get(playerId);
-    if (gameId) {
-      const game = games.get(gameId);
-      if (game) {
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-          player.socketId = socket.id;
-          activePlayers.set(socket.id, player);
-          socket.join(gameId);
+  // Сначала проверяем в играх
+  const gameId = playerGameMap.get(playerId);
+  if (gameId) {
+    const game = games.get(gameId);
+    if (game) {
+      const player = game.players.find(p => p.id === playerId);
+      if (player) {
+        // Обновляем socketId
+        player.socketId = socket.id;
+        activePlayers.set(socket.id, player);
 
+        socket.join(gameId);
+
+        // Отправляем сразу в игру
+        socket.emit('reconnectSuccess', {
+          type: 'game',
+          gameId: gameId,
+          disaster: game.disaster,
+          bunker: game.bunker,
+          player: player,
+          players: game.players
+        });
+
+        console.log('Игрок восстановлен в игре:', player.name);
+        return;
+      }
+    }
+  }
+
+  // Затем проверяем в лобби
+  for (const [lId, lobby] of lobbies) {
+    const player = lobby.players.find(p => p.id === playerId);
+    if (player) {
+      // Обновляем socketId
+      player.socketId = socket.id;
+      activePlayers.set(socket.id, player);
+
+      socket.join(lId);
+
+      // Проверяем, началась ли игра
+      if (lobby.gameId) {
+        const game = games.get(lobby.gameId);
+        if (game) {
+          // Отправляем сразу в игру
           socket.emit('reconnectSuccess', {
             type: 'game',
-            gameId: gameId,
+            gameId: lobby.gameId,
             disaster: game.disaster,
             bunker: game.bunker,
             player: player,
             players: game.players
           });
-
-          console.log('Игрок восстановлен в игре:', player.name);
+          
+          console.log('Игрок восстановлен в игре (через лобби):', player.name);
           return;
         }
       }
+
+      // Если игры нет, отправляем в лобби
+      socket.emit('reconnectSuccess', {
+        type: 'lobby',
+        lobbyId: lId,
+        player: player,
+        players: lobby.players
+      });
+
+      // Уведомляем всех об обновлении
+      io.to(lId).emit('lobbyUpdate', { players: lobby.players });
+
+      console.log('Игрок восстановлен в лобби:', player.name);
+      return;
     }
+  }
 
-    for (const [lId, lobby] of lobbies) {
-      const player = lobby.players.find(p => p.id === playerId);
-      if (player) {
-        player.socketId = socket.id;
-        activePlayers.set(socket.id, player);
-        socket.join(lId);
-
-        socket.emit('reconnectSuccess', {
-          type: 'lobby',
-          lobbyId: lId,
-          player: player,
-          players: lobby.players
-        });
-
-        io.to(lId).emit('lobbyUpdate', { players: lobby.players });
-        console.log('Игрок восстановлен в лобби:', player.name);
-        return;
-      }
-    }
-
-    socket.emit('reconnectFailed', { message: 'Игрок не найден' });
-  });
+  // Если ничего не найдено
+  socket.emit('reconnectFailed', { message: 'Игрок не найден' });
+});
 
   socket.on('checkPlayerActive', ({ playerId }) => {
     const isActive = [...activePlayers.values()].some(p => p.id === playerId);
@@ -385,38 +417,65 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinLobby', ({ lobbyId, playerName }) => {
-    console.log('Попытка входа в лобби:', lobbyId, playerName);
+  console.log('Попытка входа в лобби:', lobbyId, playerName);
 
-    const lobby = lobbies.get(lobbyId);
-    if (!lobby) {
-      socket.emit('error', 'Лобби не найдено');
-      return;
-    }
+  const lobby = lobbies.get(lobbyId);
+  if (!lobby) {
+    socket.emit('error', 'Лобби не найдено');
+    return;
+  }
 
-    const existingPlayer = lobby.players.find(p => p.name === playerName);
+  // Проверяем, есть ли уже игрок с таким ником
+  const existingPlayer = lobby.players.find(p => p.name === playerName);
 
-    if (existingPlayer) {
-      console.log('Игрок уже существует, обновляем соединение:', playerName);
+  if (existingPlayer) {
+    console.log('Игрок уже существует, обновляем соединение:', playerName);
 
-      existingPlayer.socketId = socket.id;
-      activePlayers.set(socket.id, existingPlayer);
-      socket.join(lobbyId);
+    // Обновляем socketId
+    existingPlayer.socketId = socket.id;
+    activePlayers.set(socket.id, existingPlayer);
+    socket.join(lobbyId);
+
+    // Проверяем, началась ли уже игра
+    if (lobby.gameId) {
+      console.log('Игра уже началась, отправляем игрока сразу в игру');
+      
+      const game = games.get(lobby.gameId);
+      if (game) {
+        // Отправляем игрока сразу в игру
+        socket.emit('gameStarted', {
+          gameId: game.id,
+          disaster: game.disaster,
+          bunker: game.bunker,
+          player: existingPlayer,
+          players: game.players
+        });
+      } else {
+        // Если игры нет по какой-то причине, отправляем в лобби
+        socket.emit('joinedLobby', { lobbyId, player: existingPlayer });
+        io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
+      }
+    } else {
+      // Игра еще не началась, отправляем в лобби
       socket.emit('joinedLobby', { lobbyId, player: existingPlayer });
       io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
-
-      return;
     }
 
-    const player = generatePlayer(playerName, socket.id);
-    lobby.players.push(player);
-    activePlayers.set(socket.id, player);
-    socket.join(lobbyId);
-    socket.emit('joinedLobby', { lobbyId, player });
-    io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
+    return;
+  }
 
-    saveData();
-    console.log('Новый игрок присоединился:', playerName);
-  });
+  // Если игрока нет - создаем нового
+  const player = generatePlayer(playerName, socket.id);
+  lobby.players.push(player);
+  activePlayers.set(socket.id, player);
+
+  socket.join(lobbyId);
+  socket.emit('joinedLobby', { lobbyId, player });
+  io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
+
+  saveData();
+  console.log('Новый игрок присоединился:', playerName);
+});
 
   socket.on('startGame', ({ lobbyId }) => {
     const lobby = lobbies.get(lobbyId);
