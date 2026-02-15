@@ -418,7 +418,6 @@ socket.on('reconnectPlayer', ({ playerId }) => {
     const isActive = [...activePlayers.values()].some(p => p.id === playerId);
     socket.emit('playerActiveCheck', { active: isActive });
   });
-
 socket.on('joinLobby', ({ lobbyId, playerName, isCreator }) => {
   console.log('Попытка входа в лобби:', lobbyId, playerName, 'isCreator:', isCreator);
 
@@ -434,12 +433,10 @@ socket.on('joinLobby', ({ lobbyId, playerName, isCreator }) => {
   if (existingPlayer) {
     console.log('Игрок уже существует, обновляем соединение:', playerName);
 
-    // Обновляем socketId
     existingPlayer.socketId = socket.id;
     activePlayers.set(socket.id, existingPlayer);
     socket.join(lobbyId);
 
-    // Проверяем, началась ли уже игра
     if (lobby.gameId) {
       console.log('Игра уже началась, отправляем игрока сразу в игру');
       
@@ -453,12 +450,26 @@ socket.on('joinLobby', ({ lobbyId, playerName, isCreator }) => {
           players: game.players
         });
       } else {
-        socket.emit('joinedLobby', { lobbyId, player: existingPlayer, isCreator: lobby.creator === existingPlayer.id });
-        io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
+        socket.emit('joinedLobby', { 
+          lobbyId, 
+          player: existingPlayer, 
+          isCreator: lobby.creator === existingPlayer.id 
+        });
+        io.to(lobbyId).emit('lobbyUpdate', { 
+          players: lobby.players, 
+          creatorId: lobby.creator 
+        });
       }
     } else {
-      socket.emit('joinedLobby', { lobbyId, player: existingPlayer, isCreator: lobby.creator === existingPlayer.id });
-      io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
+      socket.emit('joinedLobby', { 
+        lobbyId, 
+        player: existingPlayer, 
+        isCreator: lobby.creator === existingPlayer.id 
+      });
+      io.to(lobbyId).emit('lobbyUpdate', { 
+        players: lobby.players, 
+        creatorId: lobby.creator 
+      });
     }
 
     return;
@@ -469,15 +480,22 @@ socket.on('joinLobby', ({ lobbyId, playerName, isCreator }) => {
   lobby.players.push(player);
   activePlayers.set(socket.id, player);
 
-  // Если это создатель (первый игрок), назначаем его создателем
+  // Если это создатель (первый игрок или передан флаг), назначаем его создателем
   if (isCreator || lobby.players.length === 1) {
     lobby.creator = player.id;
     console.log('Назначен создатель лобби:', player.name);
   }
 
   socket.join(lobbyId);
-  socket.emit('joinedLobby', { lobbyId, player, isCreator: lobby.creator === player.id });
-  io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players, creatorId: lobby.creator });
+  socket.emit('joinedLobby', { 
+    lobbyId, 
+    player, 
+    isCreator: lobby.creator === player.id 
+  });
+  io.to(lobbyId).emit('lobbyUpdate', { 
+    players: lobby.players, 
+    creatorId: lobby.creator 
+  });
 
   saveData();
   console.log('Новый игрок присоединился:', playerName);
