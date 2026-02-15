@@ -9,6 +9,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
+
 // Настройка CORS
 const io = socketIo(server, {
   cors: {
@@ -17,6 +18,7 @@ const io = socketIo(server, {
     credentials: true
   }
 });
+
 
 app.use(cors({
   origin: ["http://a1230559.xsph.ru", "http://localhost"],
@@ -113,6 +115,13 @@ async function loadData() {
   }
 }
 
+// ============ Функция расчета мест в бункере ============
+function calculateBunkerSlots(playerCount) {
+    // Места = округление вниз (playerCount / 2)
+    return Math.floor(playerCount / 2);
+}
+// =======================================================
+
 // Сохранение данных в файлы
 async function saveData() {
   try {
@@ -150,7 +159,8 @@ function emitGameUpdateFixed(gameId) {
     players: game.players,
     creatorId: game.creator,
     disaster: game.disaster,
-    bunker: game.bunker
+    bunker: game.bunker,
+    totalSlots: game.totalSlots // ДОБАВЛЕНО
   });
 }
 
@@ -375,15 +385,16 @@ io.on('connection', (socket) => {
           socket.join(gameId);
 
           // Отправляем сразу в игру с creatorId
-          socket.emit('reconnectSuccess', {
-            type: 'game',
-            gameId: gameId,
-            disaster: game.disaster,
-            bunker: game.bunker,
-            player: player,
-            players: game.players,
-            creatorId: game.creator  // ДОБАВЛЕНО
-          });
+socket.emit('reconnectSuccess', {
+  type: 'game',
+  gameId: gameId,
+  disaster: game.disaster,
+  bunker: game.bunker,
+  totalSlots: game.totalSlots, // ДОБАВЛЕНО
+  player: player,
+  players: game.players,
+  creatorId: game.creator
+});
 
           console.log('Игрок восстановлен в игре:', player.name);
           return;
@@ -536,16 +547,17 @@ io.on('connection', (socket) => {
     }
 
     const gameId = uuidv4();
-    const game = {
-      id: gameId,
-      disaster: GAME_DATA.disasters[Math.floor(Math.random() * GAME_DATA.disasters.length)],
-      bunker: GAME_DATA.bunkers[Math.floor(Math.random() * GAME_DATA.bunkers.length)],
-      players: lobby.players,
-      status: 'active',
-      created: Date.now(),
-      lobbyId: lobbyId,
-      creator: lobby.creator // Сохраняем создателя и в игре
-    };
+const game = {
+  id: gameId,
+  disaster: GAME_DATA.disasters[Math.floor(Math.random() * GAME_DATA.disasters.length)],
+  bunker: GAME_DATA.bunkers[Math.floor(Math.random() * GAME_DATA.bunkers.length)],
+  players: lobby.players,
+  status: 'active',
+  created: Date.now(),
+  lobbyId: lobbyId,
+  creator: lobby.creator,
+  totalSlots: calculateBunkerSlots(lobby.players.length) // ДОБАВЛЕНО
+};
 
     games.set(gameId, game);
 
@@ -591,15 +603,16 @@ io.on('connection', (socket) => {
     const player = game.players.find(p => p.socketId === socket.id);
     if (!player) return;
 
-    socket.emit('gameData', {
-      gameId: game.id,
-      disaster: game.disaster,
-      bunker: game.bunker,
-      player: player,
-      players: game.players,
-      isCreator: player.id === game.creator,
-      creatorId: game.creator  // ДОБАВЛЕНО
-    });
+socket.emit('gameData', {
+  gameId: game.id,
+  disaster: game.disaster,
+  bunker: game.bunker,
+  totalSlots: game.totalSlots, // ДОБАВЛЕНО
+  player: player,
+  players: game.players,
+  isCreator: player.id === game.creator,
+  creatorId: game.creator
+});
   });
 
   socket.on('revealCharacteristic', ({ gameId, characteristic }) => {
