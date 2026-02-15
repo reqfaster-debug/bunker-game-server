@@ -654,6 +654,11 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (initiator.id === playerIdToKick) {
+      socket.emit('error', 'Нельзя изгнать себя');
+      return;
+    }
+
     const playerToKick = game.players.find(p => p.id === playerIdToKick);
     if (!playerToKick) {
       socket.emit('error', 'Игрок не найден');
@@ -679,6 +684,11 @@ io.on('connection', (socket) => {
     const initiator = game.players.find(p => p.socketId === socket.id);
     if (!initiator || initiator.id !== game.creator) {
       socket.emit('error', 'Только создатель может отмечать игроков мертвыми');
+      return;
+    }
+
+    if (initiator.id === playerIdToMark) {
+      socket.emit('error', 'Нельзя отметить себя мертвым');
       return;
     }
 
@@ -755,104 +765,91 @@ io.on('connection', (socket) => {
   });
 
   // ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ЗДОРОВЬЯ ============
-// ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ЗДОРОВЬЯ ============
-socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
-  console.log('changeHealth called:', { gameId, playerId, action, diseaseName, severity });
-  
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может изменять здоровье');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  let newHealthValue;
-
-  switch (action) {
-    case 'random':
-      newHealthValue = getRandomHealth();
-      break;
+  socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
+    console.log('changeHealth called:', { gameId, playerId, action, diseaseName, severity });
     
-    case 'select':
-      if (!diseaseName) {
-        socket.emit('error', 'Не выбрана болезнь');
-        return;
-      }
-      if (diseaseName === 'Здоров') {
-        newHealthValue = 'Здоров';
-      } else {
-        const sev = severity || getRandomSeverity();
-        newHealthValue = `${diseaseName} (${sev})`;
-      }
-      break;
-    
-    case 'add':
-      if (!diseaseName) {
-        socket.emit('error', 'Не выбрана болезнь');
-        return;
-      }
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может изменять здоровье');
+      return;
+    }
+
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    let newHealthValue;
+
+    switch (action) {
+      case 'random':
+        newHealthValue = getRandomHealth();
+        break;
       
-      const currentHealth = targetPlayer.characteristics.health.value;
-      let diseases = [];
+      case 'select':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+        if (diseaseName === 'Здоров') {
+          newHealthValue = 'Здоров';
+        } else {
+          const sev = severity || getRandomSeverity();
+          newHealthValue = `${diseaseName} (${sev})`;
+        }
+        break;
       
-      // Парсим существующие болезни
-      if (currentHealth && currentHealth !== 'Здоров') {
-        // Разделяем по запятой и обрабатываем каждую часть
-        const parts = currentHealth.split(',').map(s => s.trim());
-        for (const part of parts) {
-          const match = part.match(/^(.+?)\s*\((\w+)\)$/);
-          if (match) {
-            diseases.push({
-              name: match[1].trim(),
-              severity: match[2]
-            });
-          } else if (part !== 'Здоров') {
-            // Если нет степени тяжести (старый формат), добавляем легкую
-            diseases.push({
-              name: part,
-              severity: 'легкая'
-            });
+      case 'add':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+        
+        const currentHealth = targetPlayer.characteristics.health.value;
+        let diseases = [];
+        
+        if (currentHealth && currentHealth !== 'Здоров') {
+          const parts = currentHealth.split(',').map(s => s.trim());
+          for (const part of parts) {
+            const match = part.match(/^(.+?)\s*\((\w+)\)$/);
+            if (match) {
+              diseases.push({
+                name: match[1].trim(),
+                severity: match[2]
+              });
+            }
           }
         }
-      }
+        
+        diseases.push({
+          name: diseaseName,
+          severity: severity || getRandomSeverity()
+        });
+        
+        newHealthValue = diseases.map(d => `${d.name} (${d.severity})`).join(', ');
+        break;
       
-      // Добавляем новую болезнь
-      diseases.push({
-        name: diseaseName,
-        severity: severity || getRandomSeverity()
-      });
-      
-      // Формируем строку со всеми болезнями через запятую
-      newHealthValue = diseases.map(d => `${d.name} (${d.severity})`).join(', ');
-      break;
+      default:
+        socket.emit('error', 'Неизвестное действие');
+        return;
+    }
+
+    targetPlayer.characteristics.health.value = newHealthValue;
+
+    games.set(gameId, game);
+    emitGameUpdateFixed(gameId);
+    saveData();
     
-    default:
-      socket.emit('error', 'Неизвестное действие');
-      return;
-  }
-
-  targetPlayer.characteristics.health.value = newHealthValue;
-
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
-  
-  console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
-});
-// ====================================================
-
-
+    console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
+  });
+  // ====================================================
 
   socket.on('disconnect', () => {
     console.log('Отключение:', socket.id);
