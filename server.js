@@ -279,6 +279,29 @@ function generatePlayer(name, socketId) {
   return player;
 }
 
+// ============ НОВЫЕ ФУНКЦИИ ДЛЯ ЗДОРОВЬЯ ============
+function getRandomHealth() {
+  const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
+  if (healthBase.name === 'Здоров') {
+    return 'Здоров';
+  }
+  const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
+  return `${healthBase.name} (${severity})`;
+}
+
+function getRandomSeverity() {
+  return HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
+}
+
+function extractHealthName(healthString) {
+  // Из строки "Диабет (средняя)" получаем "Диабет"
+  const match = healthString.match(/^([^(]+)/);
+  return match ? match[1].trim() : healthString;
+}
+// ====================================================
+
+
+
 // API маршруты
 app.post('/api/create-lobby', (req, res) => {
   try {
@@ -822,29 +845,7 @@ socket.emit('gameData', {
       activePlayers.delete(socket.id);
     }
   });
-});
 
-
-// ============ НОВЫЕ ФУНКЦИИ ДЛЯ ЗДОРОВЬЯ ============
-function getRandomHealth() {
-  const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
-  if (healthBase.name === 'Здоров') {
-    return 'Здоров';
-  }
-  const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
-  return `${healthBase.name} (${severity})`;
-}
-
-function getRandomSeverity() {
-  return HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
-}
-
-function extractHealthName(healthString) {
-  // Из строки "Диабет (средняя)" получаем "Диабет"
-  const match = healthString.match(/^([^(]+)/);
-  return match ? match[1].trim() : healthString;
-}
-// ====================================================
 
 // ============ НОВЫЕ ОБРАБОТЧИКИ ============
 socket.on('improveHealth', ({ gameId, playerId }) => {
@@ -1052,6 +1053,11 @@ socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) 
   console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
 });
 // ====================================================
+
+
+});
+
+
 
 
 const PORT = process.env.PORT || 3000;
