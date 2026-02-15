@@ -134,59 +134,46 @@ app.post('/api/create-lobby', (req, res) => {
   }
 });
 
-app.get('/api/check-lobby/:lobbyId', (req, res) => {
-  try {
-    const { lobbyId } = req.params;
-    const lobby = lobbies.get(lobbyId);
-    res.json({ exists: !!lobby });
-  } catch (error) {
-    console.error('Ошибка проверки лобби:', error);
-    res.status(500).json({ error: 'Ошибка проверки лобби' });
-  }
-});
 
-// API для проверки активной игры
+
+// API для проверки активной игры по ID игрока
 app.get('/api/check-game/:playerId', (req, res) => {
   try {
     const { playerId } = req.params;
-    const gameId = playerGames.get(playerId);
     
-    if (gameId) {
-      const game = games.get(gameId);
-      if (game) {
-        // Ищем игрока в игре
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-          res.json({
-            active: true,
-            gameId: gameId,
-            player: player,
-            gameData: {
-              disaster: game.disaster,
-              bunker: game.bunker,
-              players: game.players
-            }
-          });
-          return;
-        }
+    // Сначала проверяем в активных играх
+    for (const [gameId, game] of games) {
+      const player = game.players.find(p => p.id === playerId);
+      if (player) {
+        return res.json({
+          active: true,
+          gameId: gameId,
+          player: player,
+          gameData: {
+            disaster: game.disaster,
+            bunker: game.bunker,
+            players: game.players
+          }
+        });
       }
     }
     
-    // Если не нашли в активных играх, проверяем в лобби
+    // Затем проверяем в лобби
     for (const [lobbyId, lobby] of lobbies) {
       const player = lobby.players.find(p => p.id === playerId);
       if (player) {
-        res.json({
+        return res.json({
           active: true,
           lobbyId: lobbyId,
           player: player,
           inLobby: true
         });
-        return;
       }
     }
     
+    // Если ничего не нашли
     res.json({ active: false });
+    
   } catch (error) {
     console.error('Ошибка проверки игры:', error);
     res.status(500).json({ error: 'Ошибка проверки игры' });
