@@ -654,11 +654,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (initiator.id === playerIdToKick) {
-      socket.emit('error', 'Нельзя изгнать себя');
-      return;
-    }
-
     const playerToKick = game.players.find(p => p.id === playerIdToKick);
     if (!playerToKick) {
       socket.emit('error', 'Игрок не найден');
@@ -684,11 +679,6 @@ io.on('connection', (socket) => {
     const initiator = game.players.find(p => p.socketId === socket.id);
     if (!initiator || initiator.id !== game.creator) {
       socket.emit('error', 'Только создатель может отмечать игроков мертвыми');
-      return;
-    }
-
-    if (initiator.id === playerIdToMark) {
-      socket.emit('error', 'Нельзя отметить себя мертвым');
       return;
     }
 
