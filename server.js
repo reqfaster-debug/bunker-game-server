@@ -209,10 +209,21 @@ const GAME_DATA = {
     traits: ['Храбрый', 'Трусливый', 'Добрый', 'Злой', 'Щедрый', 'Жадный'],
     hobbies: ['Рыбалка', 'Охота', 'Чтение', 'Спорт', 'Рисование', 'Музыка'],
     health: [
-      { name: 'Здоров', severity: 'легкая степень' },
-      { name: 'Диабет', severity: 'средняя' },
-      { name: 'Астма', severity: 'средняя' }
-    ],
+  { name: 'Здоров' },  // без степени
+  { name: 'Диабет' },
+  { name: 'Астма' },
+  { name: 'Гипертония' },
+  { name: 'Аллергия' },
+  { name: 'Артрит' },
+  { name: 'Язва' },
+  { name: 'Гепатит' },
+  { name: 'Туберкулез' },
+  { name: 'ВИЧ' },
+  { name: 'Онкология' },
+  { name: 'Псориаз' },
+  { name: 'Эпилепсия' },
+  { name: 'Мигрень' }
+],
     inventory: ['Аптечка', 'Нож', 'Фонарик', 'Топор', 'Веревка', 'Спички'],
     phobias: ['Клаустрофобия', 'Арахнофобия', 'Акрофобия'],
     extras: ['Водительские права', 'Знание языков', 'Навыки выживания'],
@@ -224,13 +235,25 @@ const GAME_DATA = {
   }
 };
 
+// Степени тяжести для здоровья
+const HEALTH_SEVERITIES = ['легкая', 'средняя', 'тяжелая', 'критическая'];
+
 // Функция генерации игрока
 function generatePlayer(name, socketId) {
   const gender = GAME_DATA.characteristics.genders[Math.floor(Math.random() * GAME_DATA.characteristics.genders.length)];
   const age = Math.floor(Math.random() * (80 - 18 + 1)) + 18;
   const profession = GAME_DATA.characteristics.professions[Math.floor(Math.random() * GAME_DATA.characteristics.professions.length)];
   const experience = Math.floor(Math.random() * 30) + 1;
-  const health = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
+  
+  // Рандомное здоровье
+  const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
+  let healthValue = healthBase.name;
+  
+  // Если не "Здоров", добавляем рандомную степень тяжести
+  if (healthBase.name !== 'Здоров') {
+    const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
+    healthValue = `${healthBase.name} (${severity})`;
+  }
 
   const player = {
     id: uuidv4(),
@@ -242,7 +265,7 @@ function generatePlayer(name, socketId) {
       trait: { value: GAME_DATA.characteristics.traits[Math.floor(Math.random() * GAME_DATA.characteristics.traits.length)], revealed: false },
       profession: { value: `${profession.name} (стаж ${experience} лет) - ${profession.description}`, revealed: false },
       hobby: { value: GAME_DATA.characteristics.hobbies[Math.floor(Math.random() * GAME_DATA.characteristics.hobbies.length)], revealed: false },
-      health: { value: `${health.name} (${health.severity})`, revealed: false },
+      health: { value: healthValue, revealed: false },
       inventory: { value: GAME_DATA.characteristics.inventory[Math.floor(Math.random() * GAME_DATA.characteristics.inventory.length)], revealed: false },
       phobia: { value: GAME_DATA.characteristics.phobias[Math.floor(Math.random() * GAME_DATA.characteristics.phobias.length)], revealed: false },
       extra: { value: GAME_DATA.characteristics.extras[Math.floor(Math.random() * GAME_DATA.characteristics.extras.length)], revealed: false }
