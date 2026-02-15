@@ -233,6 +233,7 @@ app.post('/api/create-lobby', (req, res) => {
     lobbies.set(lobbyId, {
       id: lobbyId,
       players: [],
+      creator: null, // Будет заполнен при входе создателя
       created: Date.now()
     });
 
@@ -416,8 +417,8 @@ socket.on('reconnectPlayer', ({ playerId }) => {
     socket.emit('playerActiveCheck', { active: isActive });
   });
 
-  socket.on('joinLobby', ({ lobbyId, playerName }) => {
-  console.log('Попытка входа в лобби:', lobbyId, playerName);
+socket.on('joinLobby', ({ lobbyId, playerName, isCreator }) => {
+  console.log('Попытка входа в лобби:', lobbyId, playerName, 'isCreator:', isCreator);
 
   const lobby = lobbies.get(lobbyId);
   if (!lobby) {
@@ -442,7 +443,6 @@ socket.on('reconnectPlayer', ({ playerId }) => {
       
       const game = games.get(lobby.gameId);
       if (game) {
-        // Отправляем игрока сразу в игру
         socket.emit('gameStarted', {
           gameId: game.id,
           disaster: game.disaster,
@@ -451,13 +451,11 @@ socket.on('reconnectPlayer', ({ playerId }) => {
           players: game.players
         });
       } else {
-        // Если игры нет по какой-то причине, отправляем в лобби
-        socket.emit('joinedLobby', { lobbyId, player: existingPlayer });
+        socket.emit('joinedLobby', { lobbyId, player: existingPlayer, isCreator: lobby.creator === existingPlayer.id });
         io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
       }
     } else {
-      // Игра еще не началась, отправляем в лобби
-      socket.emit('joinedLobby', { lobbyId, player: existingPlayer });
+      socket.emit('joinedLobby', { lobbyId, player: existingPlayer, isCreator: lobby.creator === existingPlayer.id });
       io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
     }
 
@@ -469,56 +467,82 @@ socket.on('reconnectPlayer', ({ playerId }) => {
   lobby.players.push(player);
   activePlayers.set(socket.id, player);
 
+  // Если это создатель (первый игрок), назначаем его создателем
+  if (isCreator || lobby.players.length === 1) {
+    lobby.creator = player.id;
+    console.log('Назначен создатель лобби:', player.name);
+  }
+
   socket.join(lobbyId);
-  socket.emit('joinedLobby', { lobbyId, player });
-  io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players });
+  socket.emit('joinedLobby', { lobbyId, player, isCreator: lobby.creator === player.id });
+  io.to(lobbyId).emit('lobbyUpdate', { players: lobby.players, creatorId: lobby.creator });
 
   saveData();
   console.log('Новый игрок присоединился:', playerName);
 });
 
-  socket.on('startGame', ({ lobbyId }) => {
-    const lobby = lobbies.get(lobbyId);
-    if (!lobby) return;
+ socket.on('startGame', ({ lobbyId }) => {
+  const lobby = lobbies.get(lobbyId);
+  if (!lobby) {
+    socket.emit('error', 'Лобби не найдено');
+    return;
+  }
 
-    if (lobby.players.length < 4) {
-      socket.emit('error', 'Недостаточно игроков (нужно минимум 4)');
-      return;
-    }
+  // Проверяем, что игрок, который хочет начать игру, является создателем
+  const player = lobby.players.find(p => p.socketId === socket.id);
+  if (!player) {
+    socket.emit('error', 'Игрок не найден в лобби');
+    return;
+  }
 
-    const gameId = uuidv4();
-    const game = {
-      id: gameId,
-      disaster: GAME_DATA.disasters[Math.floor(Math.random() * GAME_DATA.disasters.length)],
-      bunker: GAME_DATA.bunkers[Math.floor(Math.random() * GAME_DATA.bunkers.length)],
-      players: lobby.players,
-      status: 'active',
-      created: Date.now(),
-      lobbyId: lobbyId
-    };
+  if (player.id !== lobby.creator) {
+    socket.emit('error', 'Только создатель лобби может начать игру');
+    return;
+  }
 
-    games.set(gameId, game);
-    lobby.status = 'game_started';
-    lobby.gameId = gameId;
+  if (lobby.players.length < 4) {
+    socket.emit('error', 'Недостаточно игроков (нужно минимум 4)');
+    return;
+  }
 
-    game.players.forEach(player => {
-      playerGameMap.set(player.id, gameId);
-    });
+  const gameId = uuidv4();
+  const game = {
+    id: gameId,
+    disaster: GAME_DATA.disasters[Math.floor(Math.random() * GAME_DATA.disasters.length)],
+    bunker: GAME_DATA.bunkers[Math.floor(Math.random() * GAME_DATA.bunkers.length)],
+    players: lobby.players,
+    status: 'active',
+    created: Date.now(),
+    lobbyId: lobbyId,
+    creator: lobby.creator // Сохраняем создателя и в игре
+  };
 
-    game.players.forEach(player => {
-      io.to(player.socketId).emit('gameStarted', {
-        gameId: game.id,
-        disaster: game.disaster,
-        bunker: game.bunker,
-        player: player,
-        players: game.players
-      });
-    });
+  games.set(gameId, game);
 
-    saveData();
-    console.log('Игра создана:', gameId);
-    console.log('Лобби сохранено:', lobbyId);
+  // Обновляем статус лобби
+  lobby.status = 'game_started';
+  lobby.gameId = gameId;
+
+  // Сохраняем связь для каждого игрока
+  game.players.forEach(player => {
+    playerGameMap.set(player.id, gameId);
   });
+
+  game.players.forEach(player => {
+    io.to(player.socketId).emit('gameStarted', {
+      gameId: game.id,
+      disaster: game.disaster,
+      bunker: game.bunker,
+      player: player,
+      players: game.players,
+      isCreator: player.id === lobby.creator
+    });
+  });
+
+  saveData();
+  console.log('Игра создана:', gameId);
+  console.log('Лобби сохранено:', lobbyId);
+});
 
   socket.on('revealCharacteristic', ({ gameId, characteristic }) => {
     const game = games.get(gameId);
