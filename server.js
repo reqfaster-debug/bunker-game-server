@@ -305,26 +305,32 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Раскрытие характеристики
-  socket.on('revealCharacteristic', ({ gameId, characteristic }) => {
-    const game = games.get(gameId);
-    if (!game) return;
-    
-    const player = game.players.find(p => p.socketId === socket.id);
-    if (!player) return;
-    
-    player.characteristics[characteristic].revealed = true;
-    
-    // Отправляем всем в игре обновленные данные
-    game.players.forEach(p => {
-      io.to(p.socketId).emit('characteristicRevealed', {
-        playerId: player.id,
-        characteristic,
-        value: player.characteristics[characteristic].value,
-        revealedBy: player.name
-      });
+// Раскрытие характеристики
+socket.on('revealCharacteristic', ({ gameId, characteristic }) => {
+  const game = games.get(gameId);
+  if (!game) return;
+  
+  const player = game.players.find(p => p.socketId === socket.id);
+  if (!player) return;
+  
+  player.characteristics[characteristic].revealed = true;
+  
+  // Обновляем в сессии
+  const session = playerSessions.get(player.id);
+  if (session) {
+    session.playerData.characteristics[characteristic].revealed = true;
+  }
+  
+  // Отправляем всем в игре обновленные данные
+  game.players.forEach(p => {
+    io.to(p.socketId).emit('characteristicRevealed', {
+      playerId: player.id,
+      characteristic,
+      value: player.characteristics[characteristic].value,
+      revealedBy: player.name
     });
   });
+});
   
   // Отключение
   socket.on('disconnect', () => {
