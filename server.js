@@ -287,8 +287,28 @@ function extractHealthName(healthString) {
 
 // ============ НОВЫЕ ФУНКЦИИ ДЛЯ ХАРАКТЕРИСТИК ============
 function getRandomValue(charKey, currentValue = null) {
-  const charData = GAME_DATA.characteristics[charKey];
-  if (!charData) return '—';
+  console.log(`getRandomValue called for ${charKey}, current: ${currentValue}`);
+  
+  // Маппинг ключей характеристик к правильным ключам в GAME_DATA
+  const keyMapping = {
+    'gender': 'genders',
+    'bodyType': 'bodyTypes',
+    'trait': 'traits',
+    'hobby': 'hobbies',
+    'phobia': 'phobias',
+    'extra': 'extras',
+    'profession': 'professions',
+    'inventory': 'inventory',
+    'health': 'health'
+  };
+  
+  const dataKey = keyMapping[charKey] || charKey;
+  const charData = GAME_DATA.characteristics[dataKey];
+  
+  if (!charData) {
+    console.log(`No data for ${charKey} (looked for ${dataKey})`);
+    return '—';
+  }
   
   let newValue;
   const maxAttempts = 50;
@@ -300,6 +320,7 @@ function getRandomValue(charKey, currentValue = null) {
       const experience = Math.floor(Math.random() * 30) + 1;
       newValue = `${prof.name} (стаж ${experience} лет) - ${prof.description}`;
       attempts++;
+      console.log(`Profession attempt ${attempts}: ${newValue}`);
     } while (newValue === currentValue && attempts < maxAttempts);
     return newValue;
   }
@@ -310,21 +331,28 @@ function getRandomValue(charKey, currentValue = null) {
       const age = Math.floor(Math.random() * (80 - 18 + 1)) + 18;
       newValue = `${gender} (${age} лет)`;
       attempts++;
+      console.log(`Gender attempt ${attempts}: ${newValue}`);
     } while (newValue === currentValue && attempts < maxAttempts);
     return newValue;
   }
   
-  // Для обычных массивов
+  // Для всех остальных характеристик
   do {
     newValue = charData[Math.floor(Math.random() * charData.length)];
     attempts++;
+    console.log(`${charKey} attempt ${attempts}: ${newValue}`);
   } while (newValue === currentValue && attempts < maxAttempts);
   
   return newValue;
 }
 
 function parseCharacteristicValue(charKey, value) {
-  if (charKey === 'profession' || charKey === 'gender') {
+  console.log(`parseCharacteristicValue for ${charKey}: ${value}`);
+  
+  // Характеристики, которые не могут иметь несколько значений
+  const singleValueKeys = ['profession', 'gender', 'health'];
+  
+  if (singleValueKeys.includes(charKey)) {
     return { main: value, items: [] };
   }
   
@@ -337,7 +365,11 @@ function parseCharacteristicValue(charKey, value) {
 }
 
 function formatCharacteristicValue(charKey, mainValue, additionalItems = []) {
-  if (charKey === 'profession' || charKey === 'gender') {
+  console.log(`formatCharacteristicValue for ${charKey}: main=${mainValue}, additional=`, additionalItems);
+  
+  const singleValueKeys = ['profession', 'gender', 'health'];
+  
+  if (singleValueKeys.includes(charKey)) {
     return mainValue;
   }
   
