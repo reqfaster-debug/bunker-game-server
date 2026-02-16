@@ -288,7 +288,7 @@ function extractHealthName(healthString) {
 // ============ НОВЫЕ ФУНКЦИИ ДЛЯ ХАРАКТЕРИСТИК ============
 function getRandomValue(charKey, currentValue = null) {
   const charData = GAME_DATA.characteristics[charKey];
-  if (!charData) return '';
+  if (!charData) return '—';
   
   let newValue;
   const maxAttempts = 50;
@@ -918,115 +918,114 @@ io.on('connection', (socket) => {
   // ====================================================
 
   // ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
-  socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
-    console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
-    
-    const game = games.get(gameId);
-    if (!game) {
-      socket.emit('error', 'Игра не найдена');
-      return;
-    }
-
-    const initiator = game.players.find(p => p.socketId === socket.id);
-    if (!initiator || initiator.id !== game.creator) {
-      socket.emit('error', 'Только создатель может изменять характеристики');
-      return;
-    }
-
-    const targetPlayer = game.players.find(p => p.id === playerId);
-    if (!targetPlayer) {
-      socket.emit('error', 'Игрок не найден');
-      return;
-    }
-
-    const currentValue = targetPlayer.characteristics[characteristic].value;
-    const parsed = parseCharacteristicValue(characteristic, currentValue);
-    let newValue;
-
-    switch (action) {
-case 'random':
-  newValue = getRandomValue(characteristic, currentValue, game.players, targetPlayer.id);
-  break;
-      
-case 'select':
-  if (!value) {
-    socket.emit('error', 'Не выбрано значение');
-    return;
-  }
-  if (characteristic === 'profession') {
-    // Ищем профессию по имени
-    const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
-    if (prof) {
-      const experience = Math.floor(Math.random() * 30) + 1;
-      newValue = `${prof.name} (стаж ${experience} лет) - ${prof.description}`;
-    } else {
-      newValue = value;
-    }
-  } else {
-    newValue = value;
-  }
-  break;
-      
-      case 'add':
-        if (!value) {
-          socket.emit('error', 'Не выбрано значение');
-          return;
-        }
-        if (characteristic === 'profession' || characteristic === 'gender') {
-          socket.emit('error', 'Нельзя добавлять к этой характеристике');
-          return;
-        }
-        newValue = formatCharacteristicValue(characteristic, parsed.main, [...parsed.items, value]);
-        break;
-      
-case 'remove':
-  if (index === undefined || index < 0) {
-    socket.emit('error', 'Не указан элемент для удаления');
-    return;
-  }
+// ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
+socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
+  console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
   
-  if (characteristic === 'profession' || characteristic === 'gender') {
-    socket.emit('error', 'Нельзя удалять части этой характеристики');
+  const game = games.get(gameId);
+  if (!game) {
+    socket.emit('error', 'Игра не найдена');
     return;
   }
-  
-  if (index === 0) {
-    // Удаляем основное значение
-    if (parsed.items.length > 0) {
-      // Если есть дополнительные, первое дополнительное становится основным
-      newValue = formatCharacteristicValue(characteristic, parsed.items[0], parsed.items.slice(1));
-    } else {
-      // Если нет дополнительных, ставим прочерк
-      newValue = '—';
-    }
-  } else {
-    // Удаляем дополнительное значение
-    const itemIndex = index - 1;
-    if (itemIndex >= 0 && itemIndex < parsed.items.length) {
-      const newItems = [...parsed.items];
-      newItems.splice(itemIndex, 1);
-      newValue = formatCharacteristicValue(characteristic, parsed.main, newItems);
-    } else {
-      socket.emit('error', 'Элемент не найден');
-      return;
-    }
+
+  const initiator = game.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== game.creator) {
+    socket.emit('error', 'Только создатель может изменять характеристики');
+    return;
   }
-  break;
+
+  const targetPlayer = game.players.find(p => p.id === playerId);
+  if (!targetPlayer) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  const currentValue = targetPlayer.characteristics[characteristic].value;
+  const parsed = parseCharacteristicValue(characteristic, currentValue);
+  let newValue;
+
+  switch (action) {
+    case 'random':
+      console.log('Generating random for', characteristic, 'current value:', currentValue);
+      newValue = getRandomValue(characteristic, currentValue);
+      console.log('Generated new value:', newValue);
+      break;
       
-      default:
-        socket.emit('error', 'Неизвестное действие');
+    case 'select':
+      if (!value) {
+        socket.emit('error', 'Не выбрано значение');
         return;
-    }
+      }
+      if (characteristic === 'profession') {
+        const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
+        if (prof) {
+          const experience = Math.floor(Math.random() * 30) + 1;
+          newValue = `${prof.name} (стаж ${experience} лет) - ${prof.description}`;
+        } else {
+          newValue = value;
+        }
+      } else {
+        newValue = value;
+      }
+      break;
+      
+    case 'add':
+      if (!value) {
+        socket.emit('error', 'Не выбрано значение');
+        return;
+      }
+      if (characteristic === 'profession' || characteristic === 'gender') {
+        socket.emit('error', 'Нельзя добавлять к этой характеристике');
+        return;
+      }
+      newValue = formatCharacteristicValue(characteristic, parsed.main, [...parsed.items, value]);
+      break;
+      
+    case 'remove':
+      if (index === undefined || index < 0) {
+        socket.emit('error', 'Не указан элемент для удаления');
+        return;
+      }
+      
+      if (characteristic === 'profession' || characteristic === 'gender') {
+        socket.emit('error', 'Нельзя удалять части этой характеристики');
+        return;
+      }
+      
+      if (index === 0) {
+        if (parsed.items.length > 0) {
+          newValue = formatCharacteristicValue(characteristic, parsed.items[0], parsed.items.slice(1));
+        } else {
+          newValue = '—';
+        }
+      } else {
+        const itemIndex = index - 1;
+        if (itemIndex >= 0 && itemIndex < parsed.items.length) {
+          const newItems = [...parsed.items];
+          newItems.splice(itemIndex, 1);
+          newValue = formatCharacteristicValue(characteristic, parsed.main, newItems);
+        } else {
+          socket.emit('error', 'Элемент не найден');
+          return;
+        }
+      }
+      break;
+      
+    default:
+      socket.emit('error', 'Неизвестное действие');
+      return;
+  }
 
-    targetPlayer.characteristics[characteristic].value = newValue;
+  targetPlayer.characteristics[characteristic].value = newValue;
 
-    games.set(gameId, game);
-    emitGameUpdateFixed(gameId);
-    saveData();
-    
-    console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name} на ${newValue}`);
-  });
-  // =========================================================
+  games.set(gameId, game);
+  emitGameUpdateFixed(gameId);
+  saveData();
+  
+  console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name} на ${newValue}`);
+});
+// =========================================================
+
 
   socket.on('disconnect', () => {
     console.log('Отключение:', socket.id);
