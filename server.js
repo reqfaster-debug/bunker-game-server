@@ -250,7 +250,7 @@ function generatePlayer(name, socketId) {
       gender: { value: `${gender} (${age} лет)`, revealed: false },
       bodyType: { value: GAME_DATA.characteristics.bodyTypes[Math.floor(Math.random() * GAME_DATA.characteristics.bodyTypes.length)], revealed: false },
       trait: { value: GAME_DATA.characteristics.traits[Math.floor(Math.random() * GAME_DATA.characteristics.traits.length)], revealed: false },
-      profession: { value: `${profession.name} (стаж ${experience} лет) - ${profession.description}`, revealed: false },
+    profession: { value: `${profession.name} (стаж ${experience} лет)`, revealed: false },
       hobby: { value: GAME_DATA.characteristics.hobbies[Math.floor(Math.random() * GAME_DATA.characteristics.hobbies.length)], revealed: false },
       health: { value: healthValue, revealed: false },
       inventory: { value: GAME_DATA.characteristics.inventory[Math.floor(Math.random() * GAME_DATA.characteristics.inventory.length)], revealed: false },
@@ -316,16 +316,15 @@ function getRandomValue(charKey, currentValue = null) {
   const maxAttempts = 50;
   let attempts = 0;
   
-  if (charKey === 'profession') {
-    do {
-      const prof = charData[Math.floor(Math.random() * charData.length)];
-      const experience = Math.floor(Math.random() * 30) + 1;
-      newValue = `${prof.name} (стаж ${experience} лет) - ${prof.description}`;
-      attempts++;
-      console.log(`Profession attempt ${attempts}: ${newValue}`);
-    } while (newValue === currentValue && attempts < maxAttempts);
-    return newValue;
-  }
+if (charKey === 'profession') {
+  do {
+    const prof = charData[Math.floor(Math.random() * charData.length)];
+    const experience = Math.floor(Math.random() * 20) + 1;
+    newValue = `${prof.name} (стаж ${experience} лет)`; // Без описания
+    attempts++;
+  } while (newValue === currentValue && attempts < maxAttempts);
+  return newValue;
+}
   
   if (charKey === 'gender') {
     do {
@@ -1070,23 +1069,23 @@ socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, v
       console.log('Generated new value:', newValue);
       break;
       
-    case 'select':
-      if (!value) {
-        socket.emit('error', 'Не выбрано значение');
-        return;
-      }
-      if (characteristic === 'profession') {
-        const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
-        if (prof) {
-          const experience = Math.floor(Math.random() * 30) + 1;
-          newValue = `${prof.name} (стаж ${experience} лет) - ${prof.description}`;
-        } else {
-          newValue = value;
-        }
-      } else {
-        newValue = value;
-      }
-      break;
+case 'select':
+  if (!value) {
+    socket.emit('error', 'Не выбрано значение');
+    return;
+  }
+  if (characteristic === 'profession') {
+    const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
+    if (prof) {
+      const experience = Math.floor(Math.random() * 20) + 1;
+      newValue = `${prof.name} (стаж ${experience} лет)`; // Без описания
+    } else {
+      newValue = value;
+    }
+  } else {
+    newValue = value;
+  }
+  break;
       
     case 'add':
       if (!value) {
