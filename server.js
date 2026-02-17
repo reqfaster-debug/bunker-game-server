@@ -227,6 +227,49 @@ const GAME_DATA = {
 // Степени тяжести для здоровья
 const HEALTH_SEVERITIES = ['легкая', 'средняя', 'тяжелая', 'критическая'];
 
+
+// Степени тяжести для здоровья
+const HEALTH_SEVERITIES = ['легкая', 'средняя', 'тяжелая', 'критическая'];
+
+// ============ ФУНКЦИИ ДЛЯ ПАРСИНГА ЗДОРОВЬЯ ============
+function parseHealthValue(healthString) {
+  if (!healthString || healthString === 'Здоров') {
+    return [];
+  }
+  
+  // Разделяем по запятой и обрабатываем каждую часть
+  const parts = healthString.split(',').map(s => s.trim());
+  const diseases = [];
+  
+  for (const part of parts) {
+    // Ищем формат "Болезнь (степень)"
+    const match = part.match(/^(.+?)\s*\((\w+)\)$/);
+    if (match) {
+      diseases.push({
+        name: match[1].trim(),
+        severity: match[2]
+      });
+    } else {
+      // Если нет скобок, добавляем с легкой степенью
+      diseases.push({
+        name: part,
+        severity: 'легкая'
+      });
+    }
+  }
+  
+  return diseases;
+}
+
+function formatHealthValue(diseases) {
+  if (!diseases || diseases.length === 0) {
+    return 'Здоров';
+  }
+  
+  return diseases.map(d => `${d.name} (${d.severity})`).join(', ');
+}
+// ========================================================
+
 // Функция генерации игрока
 function generatePlayer(name, socketId) {
   const gender = GAME_DATA.characteristics.genders[Math.floor(Math.random() * GAME_DATA.characteristics.genders.length)];
@@ -991,38 +1034,17 @@ case 'add':
     return;
   }
   
-  const currentHealth = targetPlayer.characteristics.health.value;
-  let diseases = [];
-  
-  // Парсим существующие болезни
-  if (currentHealth && currentHealth !== 'Здоров') {
-    // Разделяем по запятой и обрабатываем каждую часть
-    const parts = currentHealth.split(',').map(s => s.trim());
-    for (const part of parts) {
-      const match = part.match(/^(.+?)\s*\((\w+)\)$/);
-      if (match) {
-        diseases.push({
-          name: match[1].trim(),
-          severity: match[2]
-        });
-      } else if (part !== 'Здоров') {
-        // Если нет степени тяжести, добавляем легкую
-        diseases.push({
-          name: part,
-          severity: 'легкая'
-        });
-      }
-    }
-  }
+  // Парсим текущие болезни
+  const currentDiseases = parseHealthValue(targetPlayer.characteristics.health.value);
   
   // Добавляем новую болезнь
-  diseases.push({
+  currentDiseases.push({
     name: diseaseName,
     severity: severity || getRandomSeverity()
   });
   
-  // Формируем строку со всеми болезнями через запятую
-  newHealthValue = diseases.map(d => `${d.name} (${d.severity})`).join(', ');
+  // Форматируем обратно
+  newHealthValue = formatHealthValue(currentDiseases);
   break;
       
       default:
@@ -1039,6 +1061,7 @@ case 'add':
     console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
   });
   // ====================================================
+
 
 
 // ============ НОВЫЙ ОБРАБОТЧИК ДЛЯ УДАЛЕНИЯ ЗДОРОВЬЯ ============
@@ -1063,29 +1086,9 @@ socket.on('removeHealth', ({ gameId, playerId, index }) => {
     return;
   }
 
-  const currentHealth = targetPlayer.characteristics.health.value;
+  // Парсим текущие болезни
+  const diseases = parseHealthValue(targetPlayer.characteristics.health.value);
   
-  // Если Здоров или нет болезней - ничего не делаем
-  if (currentHealth === 'Здоров' || !currentHealth) {
-    socket.emit('error', 'Нет болезней для удаления');
-    return;
-  }
-
-  // Парсим болезни
-  const parts = currentHealth.split(',').map(s => s.trim());
-  let diseases = [];
-  
-  for (const part of parts) {
-    const match = part.match(/^(.+?)\s*\((\w+)\)$/);
-    if (match) {
-      diseases.push({
-        name: match[1].trim(),
-        severity: match[2],
-        full: part
-      });
-    }
-  }
-
   // Проверяем индекс
   if (index < 0 || index >= diseases.length) {
     socket.emit('error', 'Неверный индекс болезни');
@@ -1095,22 +1098,14 @@ socket.on('removeHealth', ({ gameId, playerId, index }) => {
   // Удаляем болезнь по индексу
   diseases.splice(index, 1);
 
-  let newHealthValue;
-  if (diseases.length === 0) {
-    // Если болезней не осталось, ставим Здоров
-    newHealthValue = 'Здоров';
-  } else {
-    // Формируем строку с оставшимися болезнями
-    newHealthValue = diseases.map(d => `${d.name} (${d.severity})`).join(', ');
-  }
-
-  targetPlayer.characteristics.health.value = newHealthValue;
+  // Форматируем обратно
+  targetPlayer.characteristics.health.value = formatHealthValue(diseases);
 
   games.set(gameId, game);
   emitGameUpdateFixed(gameId);
   saveData();
   
-  console.log(`Создатель удалил болезнь у игрока ${targetPlayer.name}, новое здоровье: ${newHealthValue}`);
+  console.log(`Создатель удалил болезнь у игрока ${targetPlayer.name}, новое здоровье: ${targetPlayer.characteristics.health.value}`);
 });
 // ====================================================
 
