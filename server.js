@@ -227,10 +227,6 @@ const GAME_DATA = {
 // Степени тяжести для здоровья
 const HEALTH_SEVERITIES = ['легкая', 'средняя', 'тяжелая', 'критическая'];
 
-
-// Степени тяжести для здоровья
-const HEALTH_SEVERITIES = ['легкая', 'средняя', 'тяжелая', 'критическая'];
-
 // ============ ФУНКЦИИ ДЛЯ ПАРСИНГА ЗДОРОВЬЯ ============
 function parseHealthValue(healthString) {
   if (!healthString || healthString === 'Здоров') {
@@ -293,7 +289,7 @@ function generatePlayer(name, socketId) {
       gender: { value: `${gender} (${age} лет)`, revealed: false },
       bodyType: { value: GAME_DATA.characteristics.bodyTypes[Math.floor(Math.random() * GAME_DATA.characteristics.bodyTypes.length)], revealed: false },
       trait: { value: GAME_DATA.characteristics.traits[Math.floor(Math.random() * GAME_DATA.characteristics.traits.length)], revealed: false },
-    profession: { value: `${profession.name} (стаж ${experience} лет)`, revealed: false },
+      profession: { value: `${profession.name} (стаж ${experience} лет)`, revealed: false },
       hobby: { value: GAME_DATA.characteristics.hobbies[Math.floor(Math.random() * GAME_DATA.characteristics.hobbies.length)], revealed: false },
       health: { value: healthValue, revealed: false },
       inventory: { value: GAME_DATA.characteristics.inventory[Math.floor(Math.random() * GAME_DATA.characteristics.inventory.length)], revealed: false },
@@ -321,8 +317,6 @@ function getRandomHealth() {
 function getRandomSeverity() {
   return HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
 }
-
-
 
 function extractHealthName(healthString) {
   const match = healthString.match(/^([^(]+)/);
@@ -359,15 +353,15 @@ function getRandomValue(charKey, currentValue = null) {
   const maxAttempts = 50;
   let attempts = 0;
   
-if (charKey === 'profession') {
-  do {
-    const prof = charData[Math.floor(Math.random() * charData.length)];
-    const experience = Math.floor(Math.random() * 20) + 1;
-    newValue = `${prof.name} (стаж ${experience} лет)`; // Без описания
-    attempts++;
-  } while (newValue === currentValue && attempts < maxAttempts);
-  return newValue;
-}
+  if (charKey === 'profession') {
+    do {
+      const prof = charData[Math.floor(Math.random() * charData.length)];
+      const experience = Math.floor(Math.random() * 20) + 1;
+      newValue = `${prof.name} (стаж ${experience} лет)`;
+      attempts++;
+    } while (newValue === currentValue && attempts < maxAttempts);
+    return newValue;
+  }
   
   if (charKey === 'gender') {
     do {
@@ -433,14 +427,13 @@ function startVoting(gameId, initiatorId) {
   game.voting = {
     active: true,
     startTime: Date.now(),
-    endTime: Date.now() + 15000, // 15 секунд
+    endTime: Date.now() + 15000,
     initiatorId: initiatorId,
-    votes: {}, // playerId: votedForId
-    voters: new Set(), // кто уже проголосовал
+    votes: {},
+    voters: new Set(),
     timer: null
   };
   
-  // Устанавливаем таймер для завершения голосования
   game.voting.timer = setTimeout(() => {
     endVoting(gameId);
   }, 15000);
@@ -453,39 +446,33 @@ function endVoting(gameId) {
   const game = games.get(gameId);
   if (!game || !game.voting) return;
   
-  // Очищаем таймер если он еще есть
   if (game.voting.timer) {
     clearTimeout(game.voting.timer);
   }
   
-  // Подсчитываем результаты
   const results = {};
   const totalVotes = Object.keys(game.voting.votes).length;
   
-  // Считаем голоса за каждого игрока
   Object.values(game.voting.votes).forEach(votedForId => {
     results[votedForId] = (results[votedForId] || 0) + 1;
   });
   
-  // Преобразуем в проценты
   if (totalVotes > 0) {
     Object.keys(results).forEach(playerId => {
       results[playerId] = Math.round((results[playerId] / totalVotes) * 100);
     });
   }
   
-  // Сохраняем результаты и завершаем голосование
   game.voting.active = false;
   game.voting.results = results;
   game.voting.totalVotes = totalVotes;
   
   games.set(gameId, game);
   
-  // Отправляем результаты всем игрокам
   io.to(gameId).emit('votingEnded', {
     results: results,
     totalVotes: totalVotes,
-    votes: game.voting.votes // кто за кого проголосовал
+    votes: game.voting.votes
   });
   
   console.log(`Голосование в игре ${gameId} завершено`);
@@ -495,20 +482,16 @@ function cancelVoting(gameId) {
   const game = games.get(gameId);
   if (!game || !game.voting) return false;
   
-  // Очищаем таймер
   if (game.voting.timer) {
     clearTimeout(game.voting.timer);
   }
   
-  // Удаляем голосование
   delete game.voting;
   games.set(gameId, game);
   
   return true;
 }
 // ===========================================================
-
-
 
 // API маршруты
 app.post('/api/create-lobby', (req, res) => {
@@ -882,8 +865,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Разрешаем изгнать себя - убрана проверка
-
     const playerToKick = game.players.find(p => p.id === playerIdToKick);
     if (!playerToKick) {
       socket.emit('error', 'Игрок не найден');
@@ -911,8 +892,6 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Только создатель может отмечать игроков мертвыми');
       return;
     }
-
-    // Разрешаем отметить себя мертвым - убрана проверка
 
     const playerToMark = game.players.find(p => p.id === playerIdToMark);
     if (!playerToMark) {
@@ -1028,24 +1007,21 @@ io.on('connection', (socket) => {
         }
         break;
       
-case 'add':
-  if (!diseaseName) {
-    socket.emit('error', 'Не выбрана болезнь');
-    return;
-  }
-  
-  // Парсим текущие болезни
-  const currentDiseases = parseHealthValue(targetPlayer.characteristics.health.value);
-  
-  // Добавляем новую болезнь
-  currentDiseases.push({
-    name: diseaseName,
-    severity: severity || getRandomSeverity()
-  });
-  
-  // Форматируем обратно
-  newHealthValue = formatHealthValue(currentDiseases);
-  break;
+      case 'add':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+        
+        const currentDiseases = parseHealthValue(targetPlayer.characteristics.health.value);
+        
+        currentDiseases.push({
+          name: diseaseName,
+          severity: severity || getRandomSeverity()
+        });
+        
+        newHealthValue = formatHealthValue(currentDiseases);
+        break;
       
       default:
         socket.emit('error', 'Неизвестное действие');
@@ -1060,286 +1036,262 @@ case 'add':
     
     console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
   });
-  // ====================================================
 
-
-
-// ============ НОВЫЙ ОБРАБОТЧИК ДЛЯ УДАЛЕНИЯ ЗДОРОВЬЯ ============
-socket.on('removeHealth', ({ gameId, playerId, index }) => {
-  console.log('removeHealth called:', { gameId, playerId, index });
-  
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может удалять здоровье');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  // Парсим текущие болезни
-  const diseases = parseHealthValue(targetPlayer.characteristics.health.value);
-  
-  // Проверяем индекс
-  if (index < 0 || index >= diseases.length) {
-    socket.emit('error', 'Неверный индекс болезни');
-    return;
-  }
-
-  // Удаляем болезнь по индексу
-  diseases.splice(index, 1);
-
-  // Форматируем обратно
-  targetPlayer.characteristics.health.value = formatHealthValue(diseases);
-
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
-  
-  console.log(`Создатель удалил болезнь у игрока ${targetPlayer.name}, новое здоровье: ${targetPlayer.characteristics.health.value}`);
-});
-// ====================================================
-
-   
-// ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
-socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
-  console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
-  
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может изменять характеристики');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  const currentValue = targetPlayer.characteristics[characteristic].value;
-  const parsed = parseCharacteristicValue(characteristic, currentValue);
-  let newValue;
-
-  switch (action) {
-    case 'random':
-      console.log('Generating random for', characteristic, 'current value:', currentValue);
-      newValue = getRandomValue(characteristic, currentValue);
-      console.log('Generated new value:', newValue);
-      break;
-      
-case 'select':
-  if (!value) {
-    socket.emit('error', 'Не выбрано значение');
-    return;
-  }
-  if (characteristic === 'profession') {
-    const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
-    if (prof) {
-      const experience = Math.floor(Math.random() * 20) + 1;
-      newValue = `${prof.name} (стаж ${experience} лет)`; // Без описания
-    } else {
-      newValue = value;
+  // ============ НОВЫЙ ОБРАБОТЧИК ДЛЯ УДАЛЕНИЯ ЗДОРОВЬЯ ============
+  socket.on('removeHealth', ({ gameId, playerId, index }) => {
+    console.log('removeHealth called:', { gameId, playerId, index });
+    
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
     }
-  } else {
-    newValue = value;
-  }
-  break;
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может удалять здоровье');
+      return;
+    }
+
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    console.log('Current health value:', targetPlayer.characteristics.health.value);
+    
+    const diseases = parseHealthValue(targetPlayer.characteristics.health.value);
+    console.log('Parsed diseases:', diseases);
+    console.log('Attempting to remove index:', index, 'diseases length:', diseases.length);
+    
+    if (index < 0 || index >= diseases.length) {
+      socket.emit('error', `Неверный индекс болезни. Индекс: ${index}, всего болезней: ${diseases.length}`);
+      return;
+    }
+
+    diseases.splice(index, 1);
+
+    targetPlayer.characteristics.health.value = formatHealthValue(diseases);
+    console.log('New health value:', targetPlayer.characteristics.health.value);
+
+    games.set(gameId, game);
+    emitGameUpdateFixed(gameId);
+    saveData();
+    
+    console.log(`Создатель удалил болезнь у игрока ${targetPlayer.name}, новое здоровье: ${targetPlayer.characteristics.health.value}`);
+  });
+   
+  // ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
+  socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
+    console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
+    
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может изменять характеристики');
+      return;
+    }
+
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    const currentValue = targetPlayer.characteristics[characteristic].value;
+    const parsed = parseCharacteristicValue(characteristic, currentValue);
+    let newValue;
+
+    switch (action) {
+      case 'random':
+        console.log('Generating random for', characteristic, 'current value:', currentValue);
+        newValue = getRandomValue(characteristic, currentValue);
+        console.log('Generated new value:', newValue);
+        break;
       
-    case 'add':
-      if (!value) {
-        socket.emit('error', 'Не выбрано значение');
-        return;
-      }
-      if (characteristic === 'profession' || characteristic === 'gender') {
-        socket.emit('error', 'Нельзя добавлять к этой характеристике');
-        return;
-      }
-      newValue = formatCharacteristicValue(characteristic, parsed.main, [...parsed.items, value]);
-      break;
-      
-    case 'remove':
-      if (index === undefined || index < 0) {
-        socket.emit('error', 'Не указан элемент для удаления');
-        return;
-      }
-      
-      if (characteristic === 'profession' || characteristic === 'gender') {
-        socket.emit('error', 'Нельзя удалять части этой характеристики');
-        return;
-      }
-      
-      if (index === 0) {
-        if (parsed.items.length > 0) {
-          newValue = formatCharacteristicValue(characteristic, parsed.items[0], parsed.items.slice(1));
-        } else {
-          newValue = '—';
-        }
-      } else {
-        const itemIndex = index - 1;
-        if (itemIndex >= 0 && itemIndex < parsed.items.length) {
-          const newItems = [...parsed.items];
-          newItems.splice(itemIndex, 1);
-          newValue = formatCharacteristicValue(characteristic, parsed.main, newItems);
-        } else {
-          socket.emit('error', 'Элемент не найден');
+      case 'select':
+        if (!value) {
+          socket.emit('error', 'Не выбрано значение');
           return;
         }
-      }
-      break;
+        if (characteristic === 'profession') {
+          const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
+          if (prof) {
+            const experience = Math.floor(Math.random() * 20) + 1;
+            newValue = `${prof.name} (стаж ${experience} лет)`;
+          } else {
+            newValue = value;
+          }
+        } else {
+          newValue = value;
+        }
+        break;
       
-    default:
-      socket.emit('error', 'Неизвестное действие');
-      return;
-  }
+      case 'add':
+        if (!value) {
+          socket.emit('error', 'Не выбрано значение');
+          return;
+        }
+        if (characteristic === 'profession' || characteristic === 'gender') {
+          socket.emit('error', 'Нельзя добавлять к этой характеристике');
+          return;
+        }
+        newValue = formatCharacteristicValue(characteristic, parsed.main, [...parsed.items, value]);
+        break;
+      
+      case 'remove':
+        if (index === undefined || index < 0) {
+          socket.emit('error', 'Не указан элемент для удаления');
+          return;
+        }
+        
+        if (characteristic === 'profession' || characteristic === 'gender') {
+          socket.emit('error', 'Нельзя удалять части этой характеристики');
+          return;
+        }
+        
+        if (index === 0) {
+          if (parsed.items.length > 0) {
+            newValue = formatCharacteristicValue(characteristic, parsed.items[0], parsed.items.slice(1));
+          } else {
+            newValue = '—';
+          }
+        } else {
+          const itemIndex = index - 1;
+          if (itemIndex >= 0 && itemIndex < parsed.items.length) {
+            const newItems = [...parsed.items];
+            newItems.splice(itemIndex, 1);
+            newValue = formatCharacteristicValue(characteristic, parsed.main, newItems);
+          } else {
+            socket.emit('error', 'Элемент не найден');
+            return;
+          }
+        }
+        break;
+      
+      default:
+        socket.emit('error', 'Неизвестное действие');
+        return;
+    }
 
-  targetPlayer.characteristics[characteristic].value = newValue;
+    targetPlayer.characteristics[characteristic].value = newValue;
 
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
-  
-  console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name} на ${newValue}`);
-});
-
-
-
-
-
-
-// ============ ОБРАБОТЧИКИ ДЛЯ ГОЛОСОВАНИЯ ============
-socket.on('startVoting', ({ gameId }) => {
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  // Проверяем, что инициатор - создатель
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может начать голосование');
-    return;
-  }
-
-  // Проверяем, нет ли уже активного голосования
-  if (game.voting && game.voting.active) {
-    socket.emit('error', 'Голосование уже идет');
-    return;
-  }
-
-  if (startVoting(gameId, initiator.id)) {
-    // Уведомляем всех о начале голосования
-    io.to(gameId).emit('votingStarted', {
-      endTime: Date.now() + 15000,
-      initiatorName: initiator.name
-    });
-    console.log(`Создатель ${initiator.name} начал голосование в игре ${gameId}`);
-  }
-});
-
-socket.on('cancelVoting', ({ gameId }) => {
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может отменить голосование');
-    return;
-  }
-
-  if (cancelVoting(gameId)) {
-    io.to(gameId).emit('votingCancelled');
-    console.log(`Создатель ${initiator.name} отменил голосование в игре ${gameId}`);
-  }
-});
-
-socket.on('castVote', ({ gameId, votedForId }) => {
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  // Проверяем, активно ли голосование
-  if (!game.voting || !game.voting.active) {
-    socket.emit('error', 'Голосование не активно');
-    return;
-  }
-
-  const voter = game.players.find(p => p.socketId === socket.id);
-  if (!voter) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  // Проверяем, не голосовал ли уже этот игрок
-  if (game.voting.voters.has(voter.id)) {
-    socket.emit('error', 'Вы уже проголосовали');
-    return;
-  }
-
-  // Проверяем, существует ли игрок, за которого голосуют
-  const votedFor = game.players.find(p => p.id === votedForId);
-  if (!votedFor) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  // Регистрируем голос
-  game.voting.votes[voter.id] = votedForId;
-  game.voting.voters.add(voter.id);
-
-  games.set(gameId, game);
-
-  // Уведомляем всех о новом голосе (без указания кто за кого)
-  io.to(gameId).emit('voteCast', {
-    voterName: voter.name,
-    totalVotes: game.voting.voters.size
+    games.set(gameId, game);
+    emitGameUpdateFixed(gameId);
+    saveData();
+    
+    console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name} на ${newValue}`);
   });
 
-  console.log(`Игрок ${voter.name} проголосовал в игре ${gameId}`);
-});
+  // ============ ОБРАБОТЧИКИ ДЛЯ ГОЛОСОВАНИЯ ============
+  socket.on('startVoting', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
 
-socket.on('getVotingStatus', ({ gameId }) => {
-  const game = games.get(gameId);
-  if (!game) return;
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может начать голосование');
+      return;
+    }
 
-  if (game.voting && game.voting.active) {
-    socket.emit('votingStatus', {
-      active: true,
-      endTime: game.voting.endTime,
+    if (game.voting && game.voting.active) {
+      socket.emit('error', 'Голосование уже идет');
+      return;
+    }
+
+    if (startVoting(gameId, initiator.id)) {
+      io.to(gameId).emit('votingStarted', {
+        endTime: Date.now() + 15000,
+        initiatorName: initiator.name
+      });
+      console.log(`Создатель ${initiator.name} начал голосование в игре ${gameId}`);
+    }
+  });
+
+  socket.on('cancelVoting', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может отменить голосование');
+      return;
+    }
+
+    if (cancelVoting(gameId)) {
+      io.to(gameId).emit('votingCancelled');
+      console.log(`Создатель ${initiator.name} отменил голосование в игре ${gameId}`);
+    }
+  });
+
+  socket.on('castVote', ({ gameId, votedForId }) => {
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    if (!game.voting || !game.voting.active) {
+      socket.emit('error', 'Голосование не активно');
+      return;
+    }
+
+    const voter = game.players.find(p => p.socketId === socket.id);
+    if (!voter) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    if (game.voting.voters.has(voter.id)) {
+      socket.emit('error', 'Вы уже проголосовали');
+      return;
+    }
+
+    const votedFor = game.players.find(p => p.id === votedForId);
+    if (!votedFor) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    game.voting.votes[voter.id] = votedForId;
+    game.voting.voters.add(voter.id);
+
+    games.set(gameId, game);
+
+    io.to(gameId).emit('voteCast', {
+      voterName: voter.name,
       totalVotes: game.voting.voters.size
     });
-  } else {
-    socket.emit('votingStatus', { active: false });
-  }
-});
-// =====================================================
 
+    console.log(`Игрок ${voter.name} проголосовал в игре ${gameId}`);
+  });
 
+  socket.on('getVotingStatus', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
 
-
-
-
+    if (game.voting && game.voting.active) {
+      socket.emit('votingStatus', {
+        active: true,
+        endTime: game.voting.endTime,
+        totalVotes: game.voting.voters.size
+      });
+    } else {
+      socket.emit('votingStatus', { active: false });
+    }
+  });
 
   socket.on('disconnect', () => {
     console.log('Отключение:', socket.id);
@@ -1350,15 +1302,6 @@ socket.on('getVotingStatus', ({ gameId }) => {
     }
   });
 });
-
-
-
-
-
-
-
-
-
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
