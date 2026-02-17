@@ -228,6 +228,7 @@ const GAME_DATA = {
 const HEALTH_SEVERITIES = ['легкая', 'средняя', 'тяжелая', 'критическая'];
 
 // ============ ФУНКЦИИ ДЛЯ ПАРСИНГА ЗДОРОВЬЯ ============
+// ============ ФУНКЦИИ ДЛЯ ПАРСИНГА ЗДОРОВЬЯ ============
 function parseHealthValue(healthString) {
   if (!healthString || healthString === 'Здоров') {
     return [];
@@ -239,6 +240,7 @@ function parseHealthValue(healthString) {
   
   for (const part of parts) {
     // Ищем формат "Болезнь (степень)"
+    // Регулярное выражение ищет название болезни и степень в скобках
     const match = part.match(/^(.+?)\s*\((\w+)\)$/);
     if (match) {
       diseases.push({
@@ -246,16 +248,29 @@ function parseHealthValue(healthString) {
         severity: match[2]
       });
     } else {
-      // Если нет скобок, добавляем с легкой степенью
-      diseases.push({
-        name: part,
-        severity: 'легкая'
-      });
+      // Если нет скобок, это может быть результат неправильного парсинга
+      // Пробуем извлечь болезнь из строки
+      const simpleMatch = part.match(/^([^\(]+)/);
+      if (simpleMatch) {
+        diseases.push({
+          name: simpleMatch[1].trim(),
+          severity: 'легкая'
+        });
+      }
     }
   }
   
   return diseases;
 }
+
+function formatHealthValue(diseases) {
+  if (!diseases || diseases.length === 0) {
+    return 'Здоров';
+  }
+  
+  return diseases.map(d => `${d.name} (${d.severity})`).join(', ');
+}
+// ========================================================
 
 function formatHealthValue(diseases) {
   if (!diseases || diseases.length === 0) {
@@ -273,13 +288,14 @@ function generatePlayer(name, socketId) {
   const profession = GAME_DATA.characteristics.professions[Math.floor(Math.random() * GAME_DATA.characteristics.professions.length)];
   const experience = Math.floor(Math.random() * 30) + 1;
   
-  const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
-  let healthValue = healthBase.name;
-  
-  if (healthBase.name !== 'Здоров') {
-    const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
-    healthValue = `${healthBase.name} (${severity})`;
-  }
+
+const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
+let healthValue = healthBase.name;
+
+if (healthBase.name !== 'Здоров') {
+  const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
+  healthValue = `${healthBase.name} (${severity})`; // Только одна пара скобок
+}
 
   const player = {
     id: uuidv4(),
