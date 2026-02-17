@@ -279,6 +279,8 @@ function getRandomSeverity() {
   return HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
 }
 
+
+
 function extractHealthName(healthString) {
   const match = healthString.match(/^([^(]+)/);
   return match ? match[1].trim() : healthString;
@@ -380,6 +382,91 @@ function formatCharacteristicValue(charKey, mainValue, additionalItems = []) {
   return mainValue;
 }
 // =========================================================
+
+// ================= ФУНКЦИИ ДЛЯ ГОЛОСОВАНИЯ =================
+function startVoting(gameId, initiatorId) {
+  const game = games.get(gameId);
+  if (!game) return false;
+  
+  game.voting = {
+    active: true,
+    startTime: Date.now(),
+    endTime: Date.now() + 15000, // 15 секунд
+    initiatorId: initiatorId,
+    votes: {}, // playerId: votedForId
+    voters: new Set(), // кто уже проголосовал
+    timer: null
+  };
+  
+  // Устанавливаем таймер для завершения голосования
+  game.voting.timer = setTimeout(() => {
+    endVoting(gameId);
+  }, 15000);
+  
+  games.set(gameId, game);
+  return true;
+}
+
+function endVoting(gameId) {
+  const game = games.get(gameId);
+  if (!game || !game.voting) return;
+  
+  // Очищаем таймер если он еще есть
+  if (game.voting.timer) {
+    clearTimeout(game.voting.timer);
+  }
+  
+  // Подсчитываем результаты
+  const results = {};
+  const totalVotes = Object.keys(game.voting.votes).length;
+  
+  // Считаем голоса за каждого игрока
+  Object.values(game.voting.votes).forEach(votedForId => {
+    results[votedForId] = (results[votedForId] || 0) + 1;
+  });
+  
+  // Преобразуем в проценты
+  if (totalVotes > 0) {
+    Object.keys(results).forEach(playerId => {
+      results[playerId] = Math.round((results[playerId] / totalVotes) * 100);
+    });
+  }
+  
+  // Сохраняем результаты и завершаем голосование
+  game.voting.active = false;
+  game.voting.results = results;
+  game.voting.totalVotes = totalVotes;
+  
+  games.set(gameId, game);
+  
+  // Отправляем результаты всем игрокам
+  io.to(gameId).emit('votingEnded', {
+    results: results,
+    totalVotes: totalVotes,
+    votes: game.voting.votes // кто за кого проголосовал
+  });
+  
+  console.log(`Голосование в игре ${gameId} завершено`);
+}
+
+function cancelVoting(gameId) {
+  const game = games.get(gameId);
+  if (!game || !game.voting) return false;
+  
+  // Очищаем таймер
+  if (game.voting.timer) {
+    clearTimeout(game.voting.timer);
+  }
+  
+  // Удаляем голосование
+  delete game.voting;
+  games.set(gameId, game);
+  
+  return true;
+}
+// ===========================================================
+
+
 
 // API маршруты
 app.post('/api/create-lobby', (req, res) => {
@@ -949,7 +1036,7 @@ io.on('connection', (socket) => {
   });
   // ====================================================
 
-  // ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
+   
 // ============ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
 socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
   console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
@@ -1056,7 +1143,129 @@ socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, v
   
   console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name} на ${newValue}`);
 });
-// =========================================================
+
+
+
+
+
+
+// ============ ОБРАБОТЧИКИ ДЛЯ ГОЛОСОВАНИЯ ============
+socket.on('startVoting', ({ gameId }) => {
+  const game = games.get(gameId);
+  if (!game) {
+    socket.emit('error', 'Игра не найдена');
+    return;
+  }
+
+  // Проверяем, что инициатор - создатель
+  const initiator = game.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== game.creator) {
+    socket.emit('error', 'Только создатель может начать голосование');
+    return;
+  }
+
+  // Проверяем, нет ли уже активного голосования
+  if (game.voting && game.voting.active) {
+    socket.emit('error', 'Голосование уже идет');
+    return;
+  }
+
+  if (startVoting(gameId, initiator.id)) {
+    // Уведомляем всех о начале голосования
+    io.to(gameId).emit('votingStarted', {
+      endTime: Date.now() + 15000,
+      initiatorName: initiator.name
+    });
+    console.log(`Создатель ${initiator.name} начал голосование в игре ${gameId}`);
+  }
+});
+
+socket.on('cancelVoting', ({ gameId }) => {
+  const game = games.get(gameId);
+  if (!game) {
+    socket.emit('error', 'Игра не найдена');
+    return;
+  }
+
+  const initiator = game.players.find(p => p.socketId === socket.id);
+  if (!initiator || initiator.id !== game.creator) {
+    socket.emit('error', 'Только создатель может отменить голосование');
+    return;
+  }
+
+  if (cancelVoting(gameId)) {
+    io.to(gameId).emit('votingCancelled');
+    console.log(`Создатель ${initiator.name} отменил голосование в игре ${gameId}`);
+  }
+});
+
+socket.on('castVote', ({ gameId, votedForId }) => {
+  const game = games.get(gameId);
+  if (!game) {
+    socket.emit('error', 'Игра не найдена');
+    return;
+  }
+
+  // Проверяем, активно ли голосование
+  if (!game.voting || !game.voting.active) {
+    socket.emit('error', 'Голосование не активно');
+    return;
+  }
+
+  const voter = game.players.find(p => p.socketId === socket.id);
+  if (!voter) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  // Проверяем, не голосовал ли уже этот игрок
+  if (game.voting.voters.has(voter.id)) {
+    socket.emit('error', 'Вы уже проголосовали');
+    return;
+  }
+
+  // Проверяем, существует ли игрок, за которого голосуют
+  const votedFor = game.players.find(p => p.id === votedForId);
+  if (!votedFor) {
+    socket.emit('error', 'Игрок не найден');
+    return;
+  }
+
+  // Регистрируем голос
+  game.voting.votes[voter.id] = votedForId;
+  game.voting.voters.add(voter.id);
+
+  games.set(gameId, game);
+
+  // Уведомляем всех о новом голосе (без указания кто за кого)
+  io.to(gameId).emit('voteCast', {
+    voterName: voter.name,
+    totalVotes: game.voting.voters.size
+  });
+
+  console.log(`Игрок ${voter.name} проголосовал в игре ${gameId}`);
+});
+
+socket.on('getVotingStatus', ({ gameId }) => {
+  const game = games.get(gameId);
+  if (!game) return;
+
+  if (game.voting && game.voting.active) {
+    socket.emit('votingStatus', {
+      active: true,
+      endTime: game.voting.endTime,
+      totalVotes: game.voting.voters.size
+    });
+  } else {
+    socket.emit('votingStatus', { active: false });
+  }
+});
+// =====================================================
+
+
+
+
+
 
 
   socket.on('disconnect', () => {
@@ -1068,6 +1277,15 @@ socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, v
     }
   });
 });
+
+
+
+
+
+
+
+
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
