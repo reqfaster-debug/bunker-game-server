@@ -154,68 +154,23 @@ function emitGameUpdateFixed(gameId) {
 }
 
 global.emitGameUpdate = emitGameUpdateFixed;
+// ================= END FIX =================
 
+// ============ КОНФИГУРАЦИЯ OPENROUTER ============
+const OPENROUTER_API_KEY = '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';
 
-// ============ КОНФИГУРАЦИЯ DEEPSEEK API ============
-const DEEPSEEK_API_KEY = 'sk-9e3ff66b86064d809dcde316c1b09dab';
-const DEEPSEEK_MODEL = 'deepseek-chat'; // или 'deepseek-reasoner' для более глубоких размышлений
-const DEEPSEEK_TIMEOUT = 20000; // 20 секунд
+// Список моделей в порядке приоритета
+const MODELS = [
+    'google/gemini-2.0-flash-001',      // Gemini Flash (быстрый)
+    'google/gemini-1.5-flash',          // Gemini 1.5 Flash
+    'anthropic/claude-3-haiku',          // Claude Haiku (быстрый)
+    'meta-llama/llama-3-8b-instruct',    // Llama 3 (бесплатно)
+    'mistralai/mistral-7b-instruct'      // Mistral (бесплатно)
+];
 
-async function generateEventWithDeepSeek(prompt) {
-  console.log('🚀 Отправляем запрос к DeepSeek API...');
-  
-  try {
-    const response = await axios.post(
-      'https://api.deepseek.com/v1/chat/completions',
-      {
-        model: DEEPSEEK_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'Ты — мастер игры "Бункер". Твоя задача — генерировать ОДНО случайное драматическое событие, которое происходит с выжившими в постапокалиптическом бункере. Событие должно быть связано с контекстом игры (катастрофа, бункер, раскрытые характеристики игроков). Описывай событие в 3-4 предложениях, указывай последствия для конкретных игроков. 90% событий должны быть негативными, 10% — редкими позитивными. Будь креативен и избегай шаблонов.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.9,
-        max_tokens: 500,
-        top_p: 0.95,
-        frequency_penalty: 0.5, // Добавляем штраф за повторения
-        presence_penalty: 0.5    // Поощряем новые темы
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: DEEPSEEK_TIMEOUT
-      }
-    );
-
-    console.log('✅ DeepSeek ответил успешно');
-    return response.data.choices[0].message.content;
-    
-  } catch (error) {
-    console.error('❌ Ошибка DeepSeek:');
-    if (error.response) {
-      console.error('Статус:', error.response.status);
-      console.error('Данные:', error.response.data);
-      
-      // Обработка ошибки превышения квоты
-      if (error.response.status === 429) {
-        console.error('Превышен лимит запросов. Используется fallback.');
-      }
-    } else if (error.code === 'ECONNABORTED') {
-      console.error('Таймаут - сервер не ответил за 20 секунд');
-    } else {
-      console.error('Ошибка:', error.message);
-    }
-    throw error;
-  }
-}
-
+// Таймаут для каждой модели (20 секунд)
+const MODEL_TIMEOUT = 20000;
+// ================================================
 
 // Массивы данных
 const GAME_DATA = {
@@ -295,10 +250,12 @@ function parseHealthValue(healthString) {
     return [];
   }
   
+  // Разделяем по запятой и обрабатываем каждую часть
   const parts = healthString.split(',').map(s => s.trim());
   const diseases = [];
   
   for (const part of parts) {
+    // Ищем формат "Болезнь (степень)"
     const match = part.match(/^(.+?)\s*\((\w+)\)$/);
     if (match) {
       diseases.push({
@@ -306,6 +263,7 @@ function parseHealthValue(healthString) {
         severity: match[2]
       });
     } else {
+      // Если нет скобок, добавляем с легкой степенью
       diseases.push({
         name: part,
         severity: 'легкая'
@@ -387,6 +345,7 @@ function extractHealthName(healthString) {
 function getRandomValue(charKey, currentValue = null) {
   console.log(`getRandomValue called for ${charKey}, current: ${currentValue}`);
   
+  // Маппинг ключей характеристик к правильным ключам в GAME_DATA
   const keyMapping = {
     'gender': 'genders',
     'bodyType': 'bodyTypes',
@@ -432,6 +391,7 @@ function getRandomValue(charKey, currentValue = null) {
     return newValue;
   }
   
+  // Для всех остальных характеристик
   do {
     newValue = charData[Math.floor(Math.random() * charData.length)];
     attempts++;
@@ -444,6 +404,7 @@ function getRandomValue(charKey, currentValue = null) {
 function parseCharacteristicValue(charKey, value) {
   console.log(`parseCharacteristicValue for ${charKey}: ${value}`);
   
+  // Характеристики, которые не могут иметь несколько значений
   const singleValueKeys = ['profession', 'gender', 'health'];
   
   if (singleValueKeys.includes(charKey)) {
@@ -550,6 +511,7 @@ function cancelVoting(gameId) {
 // ===========================================================
 
 // ============ ФУНКЦИИ ДЛЯ ГЕНЕРАЦИИ СОБЫТИЙ ============
+// Функция для получения всех раскрытых характеристик игроков
 function getRevealedCharacteristics(game) {
   const revealed = {};
   
@@ -568,26 +530,18 @@ function getRevealedCharacteristics(game) {
   return revealed;
 }
 
+// Функция для генерации промпта
 function generateEventPrompt(game) {
   const revealedChars = getRevealedCharacteristics(game);
   
-  // Получаем последние 3 события для контекста
-  const recentEvents = game.events?.slice(0, 3) || [];
-  const recentEventsText = recentEvents.length > 0 
-    ? recentEvents.map(e => `- ${e.text}`).join('\n')
-    : 'Событий пока не было';
-  
-  let prompt = `Ты — мастер игры "Бункер". Сгенерируй НОВОЕ случайное драматическое событие, которое происходит с выжившими.
+  let prompt = `Ты — мастер игры "Бункер". Сгенерируй ОДНО случайное драматическое событие, которое происходит с выжившими в постапокалиптическом бункере.
 
 Критические правила:
-1. ⚠️ НЕ ПОВТОРЯЙ предыдущие события! Вот что уже было:
-${recentEventsText}
-
-2. Событие должно быть связано с текущей катастрофой и состоянием бункера
-3. Используй ТОЛЬКО те характеристики игроков, которые уже раскрыты
-4. Событие может быть негативным (90%) или позитивным (10%)
-5. Опиши событие в 3-4 предложениях, укажи последствия для конкретных игроков
-6. Будь максимально креативен, придумай что-то совершенно новое
+1. Событие должно быть связано с текущей катастрофой и состоянием бункера
+2. Используй ТОЛЬКО те характеристики игроков, которые уже раскрыты
+3. Событие может быть негативным (90% вероятности) или редким позитивным (10% вероятности)
+4. Опиши событие в 3-4 предложениях, укажи последствия для конкретных игроков
+5. Не используй шаблонные фразы, будь креативен
 
 Контекст:
 - Катастрофа: ${game.disaster}
@@ -602,11 +556,87 @@ ${recentEventsText}
       const charStrings = Object.entries(chars).map(([key, value]) => `${key}: ${value}`);
       prompt += charStrings.join(', ') + '\n';
     });
+  } else {
+    prompt += `\nПока нет раскрытых характеристик.`;
   }
 
-  prompt += `\n⚠️ ВАЖНО: Придумай событие, которое кардинально отличается от предыдущих!`;
+  prompt += `\n\nСгенерируй событие в духе постапокалипсиса, мрачное и реалистичное.`;
 
   return prompt;
+}
+
+// Функция для вызова OpenRouter с таймаутом
+async function callOpenRouterWithTimeout(model, prompt, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model: model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.9,
+        max_tokens: 500
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://bunker-game-server.onrender.com',
+          'X-Title': 'Bunker Game'
+        },
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+// Основная функция генерации события с перебором моделей
+async function generateEventWithFallback(prompt) {
+  let lastError = null;
+  
+  for (let i = 0; i < MODELS.length; i++) {
+    const model = MODELS[i];
+    console.log(`Попытка ${i + 1}/${MODELS.length}: использование модели ${model}`);
+    
+    try {
+      const startTime = Date.now();
+      const result = await callOpenRouterWithTimeout(model, prompt, MODEL_TIMEOUT);
+      const elapsedTime = Date.now() - startTime;
+      
+      console.log(`✅ Модель ${model} ответила за ${elapsedTime}мс`);
+      return result;
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log(`⏰ Модель ${model} не ответила за ${MODEL_TIMEOUT/1000} секунд`);
+        lastError = new Error(`Таймаут модели ${model}`);
+      } else {
+        console.log(`❌ Модель ${model} ошибка:`, error.message);
+        lastError = error;
+      }
+      
+      // Если это последняя модель, пробрасываем ошибку
+      if (i === MODELS.length - 1) {
+        throw lastError;
+      }
+      
+      // Небольшая пауза перед следующей попыткой
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
 }
 // ===========================================================
 
@@ -699,6 +729,7 @@ app.get('/api/check-player/:playerId', (req, res) => {
 });
 
 // ============ API МАРШРУТЫ ДЛЯ СОБЫТИЙ ============
+// API маршрут для генерации события
 app.post('/api/generate-event', async (req, res) => {
   try {
     const { gameId } = req.body;
@@ -711,16 +742,20 @@ app.post('/api/generate-event', async (req, res) => {
     const prompt = generateEventPrompt(game);
     console.log('Prompt for AI:', prompt);
 
+    let generatedText;
+    let usedModel = 'unknown';
+    
     try {
-
-  const generatedText = await generateEventWithDeepSeek(prompt);
+      // Пытаемся получить ответ от моделей по очереди
+      generatedText = await generateEventWithFallback(prompt);
       
+      // Определяем тип события по ключевым словам
       const isPositive = generatedText.toLowerCase().includes('удача') || 
                         generatedText.toLowerCase().includes('повезло') ||
                         generatedText.toLowerCase().includes('находка') ||
                         generatedText.toLowerCase().includes('спасает') ||
                         generatedText.toLowerCase().includes('чудом') ||
-                        Math.random() < 0.1;
+                        Math.random() < 0.1; // 10% шанс если не определили
       
       const event = {
         id: uuidv4(),
@@ -729,6 +764,7 @@ app.post('/api/generate-event', async (req, res) => {
         type: isPositive ? 'positive' : 'negative'
       };
 
+      // Сохраняем событие в игре
       if (!game.events) {
         game.events = [];
       }
@@ -738,12 +774,14 @@ app.post('/api/generate-event', async (req, res) => {
       }
 
       games.set(gameId, game);
+      
+      // Отправляем событие всем игрокам
       io.to(gameId).emit('newEvent', event);
       
-      res.json({ success: true, event });
+      res.json({ success: true, event, usedModel });
       
     } catch (error) {
-      console.error('не ответил:', error);
+      console.error('Все модели не ответили:', error);
       
       // Запасной вариант - локальное событие
       const localEvents = [
@@ -775,7 +813,8 @@ app.post('/api/generate-event', async (req, res) => {
       res.json({ 
         success: true, 
         event: fallbackEvent, 
-        warning: 'Использован локальный генератор событий (нейросеть временно недоступна)' 
+        usedModel: 'fallback',
+        warning: 'Использован локальный генератор событий (нейросеть недоступна)' 
       });
     }
     
