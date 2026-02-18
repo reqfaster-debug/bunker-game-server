@@ -548,6 +548,7 @@ function getRevealedCharacteristics(game) {
 function generateEventPrompt(game) {
 const revealedChars = getRevealedCharacteristics(game);
 let prompt = `
+Уникальный seed: ${Math.floor(Math.random() * 1000000)} 
 Ты — жесткий, изобретательный мастер игры "Бункер".
 
 Сгенерируй ОДНО внезапное внешнее событие, которое происходит с игроками.
@@ -623,7 +624,7 @@ if (Object.keys(revealedChars).length > 0) {
   prompt += `\nПока нет раскрытых характеристик игроков.`;
 }
 
-prompt += `\n\nСгенерируй мрачное, реалистичное, внешне обусловленное событие.`;
+
 
 return prompt;
 }
@@ -644,8 +645,8 @@ async function callOpenRouterWithTimeout(model, prompt, timeoutMs) {
             content: prompt
           }
         ],
-        temperature: 0.9,
-        max_tokens: 500
+        temperature: 1,
+        max_tokens: 2000
       },
       {
         headers: {
