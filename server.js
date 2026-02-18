@@ -521,8 +521,27 @@ function cancelVoting(gameId) {
 
 // ============ ФУНКЦИИ ДЛЯ ГЕНЕРАЦИИ СОБЫТИЙ ============
 
+
+function getRevealedCharacteristics(game) {
+  const revealed = {};
+  
+  game.players.forEach(player => {
+    const playerRevealed = {};
+    Object.entries(player.characteristics).forEach(([key, char]) => {
+      if (char.revealed) {
+        playerRevealed[key] = char.value;
+      }
+    });
+    if (Object.keys(playerRevealed).length > 0) {
+      revealed[player.name] = playerRevealed;
+    }
+  });
+  
+  return revealed;
+}
+
 function generateEventPrompt(game) {
-  const revealedChars = getRevealedCharacteristics(game);
+const revealedChars = getRevealedCharacteristics(game);
 let prompt = `
 Ты — жесткий, изобретательный мастер игры "Бункер".
 
