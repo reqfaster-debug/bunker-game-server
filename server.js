@@ -154,62 +154,59 @@ function emitGameUpdateFixed(gameId) {
 }
 
 global.emitGameUpdate = emitGameUpdateFixed;
-// ================= END FIX =================
 
-// ============ КОНФИГУРАЦИЯ GEMINI ============
-const GEMINI_API_KEY = 'AIzaSyBWjPcw0CgsseecF3ghrrjoFaeGiXutzkU';
-const GEMINI_MODEL = 'gemini-2.0-flash'; // Быстрая модель с хорошим качеством
-const GEMINI_TIMEOUT = 10000; // 10 секунд
 
-async function generateEventWithGemini(prompt) {
-  console.log('🚀 Отправляем запрос к Gemini API...');
-  console.log('Промпт (первые 200 символов):', prompt.substring(0, 200) + '...');
+// ============ КОНФИГУРАЦИЯ DEEPSEEK API ============
+const DEEPSEEK_API_KEY = 'sk-9e3ff66b86064d809dcde316c1b09dab';
+const DEEPSEEK_MODEL = 'deepseek-chat'; // или 'deepseek-reasoner' для более глубоких размышлений
+const DEEPSEEK_TIMEOUT = 20000; // 20 секунд
+
+async function generateEventWithDeepSeek(prompt) {
+  console.log('🚀 Отправляем запрос к DeepSeek API...');
   
   try {
-    const startTime = Date.now();
-    
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      'https://api.deepseek.com/v1/chat/completions',
       {
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 500,
-          topP: 0.95,
-          topK: 40
-        }
+        model: DEEPSEEK_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты — мастер игры "Бункер". Твоя задача — генерировать ОДНО случайное драматическое событие, которое происходит с выжившими в постапокалиптическом бункере. Событие должно быть связано с контекстом игры (катастрофа, бункер, раскрытые характеристики игроков). Описывай событие в 3-4 предложениях, указывай последствия для конкретных игроков. 90% событий должны быть негативными, 10% — редкими позитивными. Будь креативен и избегай шаблонов.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.9,
+        max_tokens: 500,
+        top_p: 0.95,
+        frequency_penalty: 0.5, // Добавляем штраф за повторения
+        presence_penalty: 0.5    // Поощряем новые темы
       },
-      { 
-        timeout: GEMINI_TIMEOUT,
+      {
         headers: {
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: DEEPSEEK_TIMEOUT
       }
     );
 
-    const elapsedTime = Date.now() - startTime;
-    console.log(`✅ Gemini ответил за ${elapsedTime}мс`);
-
-    if (!response.data.candidates || response.data.candidates.length === 0) {
-      console.error('❌ Нет candidates в ответе:', response.data);
-      throw new Error('Нет ответа от Gemini');
-    }
-
-    const generatedText = response.data.candidates[0].content.parts[0].text;
-    console.log('📝 Сгенерированный текст (первые 100 символов):', generatedText.substring(0, 100) + '...');
-    
-    return generatedText;
+    console.log('✅ DeepSeek ответил успешно');
+    return response.data.choices[0].message.content;
     
   } catch (error) {
-    console.error('❌ Ошибка Gemini:');
+    console.error('❌ Ошибка DeepSeek:');
     if (error.response) {
-      // API вернуло ошибку
       console.error('Статус:', error.response.status);
       console.error('Данные:', error.response.data);
+      
+      // Обработка ошибки превышения квоты
+      if (error.response.status === 429) {
+        console.error('Превышен лимит запросов. Используется fallback.');
+      }
     } else if (error.code === 'ECONNABORTED') {
       console.error('Таймаут - сервер не ответил за 20 секунд');
     } else {
@@ -218,7 +215,7 @@ async function generateEventWithGemini(prompt) {
     throw error;
   }
 }
-// =============================================
+
 
 // Массивы данных
 const GAME_DATA = {
@@ -715,8 +712,8 @@ app.post('/api/generate-event', async (req, res) => {
     console.log('Prompt for AI:', prompt);
 
     try {
-      // Пытаемся получить ответ от Gemini
-      const generatedText = await generateEventWithGemini(prompt);
+
+  const generatedText = await generateEventWithDeepSeek(prompt);
       
       const isPositive = generatedText.toLowerCase().includes('удача') || 
                         generatedText.toLowerCase().includes('повезло') ||
@@ -746,7 +743,7 @@ app.post('/api/generate-event', async (req, res) => {
       res.json({ success: true, event });
       
     } catch (error) {
-      console.error('Gemini не ответил:', error);
+      console.error('не ответил:', error);
       
       // Запасной вариант - локальное событие
       const localEvents = [
