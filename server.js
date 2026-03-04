@@ -246,6 +246,13 @@ function calculateBunkerSlots(playerCount) {
 
 
 
+
+
+
+
+
+
+
 // Гарантирует, что в игре есть хотя бы один здоровый игрок
 function ensureAtLeastOneHealthy(game) {
   const hasHealthy = game.players.some(p => p.characteristics.health.value === 'Здоров');
@@ -3266,6 +3273,77 @@ app.post('/api/generate-event', async (req, res) => {
     console.error('❌ Ошибка генерации события:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// ============ API МАРШРУТ ДЛЯ ГЕНЕРАЦИИ ФИНАЛА ============
+function buildFinalPrompt(game) {
+    // Собираем информацию о катастрофе и бункере
+    let prompt = `Сгенерируй финал игры "Бункер" в виде хронологии выживания по годам.\n\n`;
+    prompt += `КАТАСТРОФА:\n${game.disaster}\n\n`;
+    prompt += `БУНКЕР:\nСрок: ${game.bunker.duration_years} лет, Еда: на ${game.bunker.food_years} лет\n${game.bunker.extra}\n\n`;
+
+    // Информация об игроках (только раскрытые характеристики)
+    prompt += `ИГРОКИ (только раскрытая информация):\n`;
+    game.players.forEach(player => {
+        if (player.status === 'kicked' || player.status === 'dead') return;
+        const revealed = [];
+        Object.entries(player.characteristics).forEach(([key, char]) => {
+            if (char.revealed) {
+                revealed.push(`${key}: ${char.value}`);
+            }
+        });
+        if (revealed.length > 0) {
+            prompt += `\n${player.name}:\n`;
+            revealed.forEach(line => prompt += `  ${line}\n`);
+        }
+    });
+
+    prompt += `\nТРЕБОВАНИЯ К ФИНАЛУ:\n`;
+    prompt += `- Хронология по годам: год 1, год 2, ... до последнего года (согласно сроку бункера) или до момента гибели группы.\n`;
+    prompt += `- Стиль: захватывающий, реалистичный, с элементами чёрного юмора, пикантными подробностями, упоминаниями интимных отношений между игроками (если это логично вытекает из их характеристик).\n`;
+    prompt += `- Длина: от 20 до 40 предложений.\n`;
+    prompt += `- Исход должен зависеть от раскрытых характеристик: если характеристики бесполезны или вредны, группа может погибнуть (голод, болезни, конфликты). Если есть полезные навыки – шансы на выживание выше.\n`;
+    prompt += `- Используй имена игроков как в списке выше.\n`;
+    prompt += `- Не добавляй информацию, которой нет в раскрытых характеристиках.\n`;
+    prompt += `- Финал должен быть законченным (либо все выжили, либо погибли, либо частично).\n`;
+
+    return prompt;
+}
+
+app.post('/api/generate-final', async (req, res) => {
+    try {
+        const { gameId } = req.body;
+        const game = games.get(gameId);
+        if (!game) {
+            return res.status(404).json({ error: 'Игра не найдена' });
+        }
+
+        console.log(`🎬 Генерация финала для игры ${gameId}`);
+
+        const prompt = buildFinalPrompt(game);
+
+        // Пробуем модели по порядку (STORY_MODELS уже определён в server.js)
+        let finalText = null;
+        for (const model of STORY_MODELS) {
+            try {
+                finalText = await callModelWithTimeout(model, prompt, 30000); // 30 сек
+                if (finalText) break;
+            } catch (error) {
+                console.log(`❌ Модель ${model} для финала не ответила:`, error.message);
+            }
+        }
+
+        if (!finalText) {
+            // Запасной вариант
+            finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
+        }
+
+        res.json({ success: true, final: finalText });
+
+    } catch (error) {
+        console.error('❌ Ошибка генерации финала:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.get('/api/events/:gameId', (req, res) => {
