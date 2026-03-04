@@ -2173,7 +2173,7 @@ function generatePlayer(name, socketId) {
 
   // Пол и возраст
   const gender = takeRandomFromArray(availableGenders);
-  const age = Math.floor(Math.random() * (80 - 18 + 1)) + 18;
+  const age = Math.floor(Math.random() * (80 - 18 + 1)) + 21;
 
   // Телосложение
   const bodyType = takeRandomFromArray(availableBodyTypes);
@@ -3311,39 +3311,40 @@ function buildFinalPrompt(game) {
 }
 
 app.post('/api/generate-final', async (req, res) => {
-    try {
-        const { gameId } = req.body;
-        const game = games.get(gameId);
-        if (!game) {
-            return res.status(404).json({ error: 'Игра не найдена' });
-        }
-
-        console.log(`🎬 Генерация финала для игры ${gameId}`);
-
-        const prompt = buildFinalPrompt(game);
-
-        // Пробуем модели по порядку (STORY_MODELS уже определён в server.js)
-        let finalText = null;
-        for (const model of STORY_MODELS) {
-            try {
-                finalText = await callModelWithTimeout(model, prompt, 30000); // 30 сек
-                if (finalText) break;
-            } catch (error) {
-                console.log(`❌ Модель ${model} для финала не ответила:`, error.message);
-            }
-        }
-
-        if (!finalText) {
-            // Запасной вариант
-            finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
-        }
-
-        res.json({ success: true, final: finalText });
-
-    } catch (error) {
-        console.error('❌ Ошибка генерации финала:', error);
-        res.status(500).json({ error: error.message });
+  try {
+    const { gameId } = req.body;
+    const game = games.get(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Игра не найдена' });
     }
+
+    console.log(`🎬 Генерация финала для игры ${gameId}`);
+
+    const prompt = buildFinalPrompt(game);
+
+    let finalText = null;
+    for (const model of STORY_MODELS) {
+      try {
+        finalText = await callModelWithTimeout(model, prompt, 30000);
+        if (finalText) break;
+      } catch (error) {
+        console.log(`❌ Модель ${model} для финала не ответила:`, error.message);
+      }
+    }
+
+    if (!finalText) {
+      finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
+    }
+
+    // Отправляем финал всем игрокам через сокет
+    io.to(gameId).emit('finalGenerated', { final: finalText });
+
+    res.json({ success: true, final: finalText });
+
+  } catch (error) {
+    console.error('❌ Ошибка генерации финала:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/events/:gameId', (req, res) => {
