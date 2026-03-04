@@ -2305,7 +2305,42 @@ function generateExperienceByAge(age) {
 }
 // ====================================================
 
+// Функция для получения шанса лечения по стажу
+function getHealChance(experience) {
+    if (experience >= 25 && experience <= 30) return 100;
+    if (experience >= 20 && experience <= 24) return 90;
+    if (experience >= 15 && experience <= 19) return 80;
+    if (experience >= 10 && experience <= 14) return 70;
+    if (experience >= 5 && experience <= 9) return 60;
+    if (experience >= 1 && experience <= 4) return 55;
+    return 50; // на всякий случай
+}
 
+// Функция для изменения степени тяжести болезни на указанное количество шагов
+// delta: положительное - ухудшение, отрицательное - улучшение
+// Возвращает новую строку здоровья, 'DEATH' (смерть) или 'Здоров'
+function adjustDiseaseSeverity(healthString, delta) {
+    const diseases = parseHealthValue(healthString);
+    if (diseases.length === 0) return healthString;
+
+    const severities = ['легкая', 'средняя', 'тяжелая', 'критическая'];
+    // Для простоты лечим первую болезнь (можно доработать под выбор конкретной)
+    const disease = diseases[0];
+    const currentIndex = severities.indexOf(disease.severity);
+
+    let newIndex = currentIndex + delta;
+
+    if (newIndex < 0) {
+        // Полное излечение
+        return 'Здоров';
+    } else if (newIndex >= severities.length) {
+        // Превышение критической степени - смерть
+        return 'DEATH';
+    } else {
+        disease.severity = severities[newIndex];
+        return formatHealthValue(diseases);
+    }
+}
 
 
 // ============ НОВЫЕ ФУНКЦИИ ДЛЯ ХАРАКТЕРИСТИК ============
@@ -3838,16 +3873,8 @@ socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) 
   });
 
 
-io.to(gameId).emit('healAttemptResult', {
-    playerName: targetPlayer.name,
-    initiatorName: initiator.name,
-    message: resultMessage,
-    success: !died && selectedOutcome.name !== 'up1',
-    died: died,
-    newHealth: targetPlayer.characteristics?.health?.value,
-    outcome: selectedOutcome.name,
-    experience: exp
-});
+
+
 
 // ============ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
 socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
@@ -4123,6 +4150,120 @@ socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, v
       activePlayers.delete(socket.id);
     }
   });
+
+
+// ============ ОБРАБОТЧИК ДЛЯ ЛЕЧЕНИЯ ============
+socket.on('attemptHeal', ({ gameId, playerId, experience }) => {
+    try {
+        console.log('attemptHeal called:', { gameId, playerId, experience });
+
+        const game = games.get(gameId);
+        if (!game) {
+            socket.emit('error', 'Игра не найдена');
+            return;
+        }
+
+        const initiator = game.players.find(p => p.socketId === socket.id);
+        if (!initiator || initiator.id !== game.creator) {
+            socket.emit('error', 'Только создатель может использовать лечение');
+            return;
+        }
+
+        const targetPlayer = game.players.find(p => p.id === playerId);
+        if (!targetPlayer) {
+            socket.emit('error', 'Игрок не найден');
+            return;
+        }
+
+        if (!targetPlayer.characteristics.health.revealed) {
+            socket.emit('error', 'Здоровье игрока не раскрыто');
+            return;
+        }
+
+        const diseases = parseHealthValue(targetPlayer.characteristics.health.value);
+        if (diseases.length === 0 || targetPlayer.characteristics.health.value === 'Здоров') {
+            socket.emit('error', 'У игрока нет болезней для лечения');
+            return;
+        }
+
+        const exp = parseInt(experience);
+        if (isNaN(exp) || exp < 1 || exp > 30) {
+            socket.emit('error', 'Некорректный стаж (должен быть от 1 до 30)');
+            return;
+        }
+
+        // Проверяем, есть ли критическая степень
+        const hasCritical = diseases.some(d => d.severity === 'критическая');
+
+        // Получаем шанс по стажу
+        const chance = getHealChance(exp);
+        console.log(`Введённый стаж: ${exp}, шанс успеха: ${chance}%`);
+
+        // Определяем успех
+        const roll = Math.random() * 100;
+        const isSuccess = roll < chance;
+
+        let resultMessage = '';
+        let died = false;
+
+        if (isSuccess) {
+            // Успешное лечение – уменьшаем тяжесть на 1 степень
+            const newHealth = adjustDiseaseSeverity(targetPlayer.characteristics.health.value, -1);
+            if (newHealth === 'Здоров') {
+                resultMessage = `✅ Полное излечение! (Стаж ${exp} лет)`;
+                targetPlayer.characteristics.health.value = 'Здоров';
+            } else {
+                resultMessage = `✅ Успешное лечение! Степень снижена (Стаж ${exp} лет)`;
+                targetPlayer.characteristics.health.value = newHealth;
+            }
+        } else {
+            // Неудачное лечение
+            if (hasCritical) {
+                // Критическая степень + неудача = смерть
+                targetPlayer.status = 'dead';
+                targetPlayer.statusMessage = 'умер при лечении';
+                died = true;
+                resultMessage = `💀 ${targetPlayer.name} не пережил лечение! (Стаж ${exp} лет)`;
+            } else {
+                // Не критическая степень – ухудшение на 1 степень
+                const newHealth = adjustDiseaseSeverity(targetPlayer.characteristics.health.value, 1);
+                if (newHealth === 'DEATH') {
+                    targetPlayer.status = 'dead';
+                    targetPlayer.statusMessage = 'умер от осложнений';
+                    died = true;
+                    resultMessage = `💀 ${targetPlayer.name} умер от осложнений! (Стаж ${exp} лет)`;
+                } else {
+                    resultMessage = `❌ Здоровье ухудшилось на 1 степень! (Стаж ${exp} лет)`;
+                    targetPlayer.characteristics.health.value = newHealth;
+                }
+            }
+        }
+
+        // Сохраняем изменения
+        games.set(gameId, game);
+        saveData();
+
+        // Отправляем результат всем игрокам
+        io.to(gameId).emit('healAttemptResult', {
+            playerName: targetPlayer.name,
+            initiatorName: initiator.name,
+            message: resultMessage,
+            success: isSuccess && !died,
+            died: died,
+            newHealth: targetPlayer.characteristics?.health?.value,
+            outcome: isSuccess ? 'down1' : (hasCritical ? 'death' : 'up1'),
+            experience: exp
+        });
+
+        emitGameUpdateFixed(gameId);
+        console.log(`Лечение: ${initiator.name} -> ${targetPlayer.name}: ${resultMessage}`);
+
+    } catch (error) {
+        console.error('❌ Ошибка в attemptHeal:', error);
+        socket.emit('error', 'Внутренняя ошибка сервера при лечении');
+    }
+});
+  
 });
 
 const PORT = process.env.PORT || 3000;
