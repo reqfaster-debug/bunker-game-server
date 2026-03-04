@@ -2153,86 +2153,90 @@ function formatHealthValue(diseases) {
 }
 // ========================================================
 // Функция генерации игрока (с защитой от дубликатов, привязкой стажа к возрасту, фильтрацией по полу и 10% шансом на здоровье)
+// Функция генерации игрока (полная защита от дубликатов)
 function generatePlayer(name, socketId) {
-  // Копии всех массивов для безопасного выбора
-  const availableGenders = [...GAME_DATA.characteristics.genders];
-  const availableBodyTypes = [...GAME_DATA.characteristics.bodyTypes];
-  const availableTraits = [...GAME_DATA.characteristics.traits];
-  const availableProfessions = [...GAME_DATA.characteristics.professions];
-  const availableHobbies = [...GAME_DATA.characteristics.hobbies];
-  const availableHealth = [...GAME_DATA.characteristics.health];
-  const availableInventory = [...GAME_DATA.characteristics.inventory];
-  const availablePhobias = [...GAME_DATA.characteristics.phobias];
-  const availableExtras = [...GAME_DATA.characteristics.extras];
+  // Массивы-источники
+  const sourceGenders = GAME_DATA.characteristics.genders;
+  const sourceBodyTypes = GAME_DATA.characteristics.bodyTypes;
+  const sourceTraits = GAME_DATA.characteristics.traits;
+  const sourceProfessions = GAME_DATA.characteristics.professions;
+  const sourceHobbies = GAME_DATA.characteristics.hobbies;
+  const sourceHealth = GAME_DATA.characteristics.health;
+  const sourceInventory = GAME_DATA.characteristics.inventory;
+  const sourcePhobias = GAME_DATA.characteristics.phobias;
+  const sourceExtras = GAME_DATA.characteristics.extras;
 
-  function takeRandomFromArray(array) {
-    if (array.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * array.length);
-    return array.splice(randomIndex, 1)[0];
+  const usedValues = []; // здесь будем хранить все уже выбранные значения
+
+  // Вспомогательная функция для выбора случайного элемента из массива,
+  // исключая элементы, присутствующие в usedValues
+  function pickRandom(array, nameExtractor = (item) => item) {
+    // Отфильтровываем элементы, которые уже есть в usedValues
+    const filtered = array.filter(item => !usedValues.includes(nameExtractor(item)));
+    if (filtered.length === 0) {
+      // Если не осталось уникальных элементов, выбираем случайный из исходных (крайний случай)
+      console.warn('Не осталось уникальных значений, выбираем случайное из исходных');
+      const randomIndex = Math.floor(Math.random() * array.length);
+      return array[randomIndex];
+    }
+    const randomIndex = Math.floor(Math.random() * filtered.length);
+    return filtered[randomIndex];
   }
 
   // Пол и возраст
-  const gender = takeRandomFromArray(availableGenders);
-  const age = Math.floor(Math.random() * (80 - 18 + 1)) + 21;
+  const gender = pickRandom(sourceGenders);
+  const age = Math.floor(Math.random() * (80 - 20 + 1)) + 20; // возраст 20–80
+  usedValues.push(gender);
 
   // Телосложение
-  const bodyType = takeRandomFromArray(availableBodyTypes);
+  const bodyType = pickRandom(sourceBodyTypes);
+  usedValues.push(bodyType);
 
   // Черта характера
-  const trait = takeRandomFromArray(availableTraits);
+  const trait = pickRandom(sourceTraits);
+  usedValues.push(trait);
 
   // Профессия (объект)
-  const professionObj = takeRandomFromArray(availableProfessions);
-  // Стаж генерируем на основе возраста
+  const professionObj = pickRandom(sourceProfessions, (p) => p.name);
   const experience = generateExperienceByAge(age);
   const professionValue = `${professionObj.name} (стаж ${experience} лет)`;
+  usedValues.push(professionObj.name);
 
   // Хобби
-  const hobby = takeRandomFromArray(availableHobbies);
+  const hobby = pickRandom(sourceHobbies);
+  usedValues.push(hobby);
 
-  // === ЗДОРОВЬЕ с учётом пола и 10% шансом ===
-  // Определяем пол игрока как строку "Мужской" / "Женский"
-  const playerGender = gender; // например "Мужской"
-  // Фильтруем доступные заболевания по полу
-  const filteredHealth = availableHealth.filter(h => {
+  // Инвентарь
+  const inventory = pickRandom(sourceInventory);
+  usedValues.push(inventory);
+
+  // Фобия
+  const phobia = pickRandom(sourcePhobias);
+  usedValues.push(phobia);
+
+  // Доп. сведения
+  const extra = pickRandom(sourceExtras);
+  usedValues.push(extra);
+
+  // Здоровье с учётом пола
+  const playerGender = gender; // 'Мужской' или 'Женский'
+  const filteredHealth = sourceHealth.filter(h => {
     if (!h.gender || h.gender === 'any') return true;
     if (playerGender === 'Мужской' && h.gender === 'male') return true;
     if (playerGender === 'Женский' && h.gender === 'female') return true;
     return false;
   });
-
+  const healthObj = pickRandom(filteredHealth, (h) => h.name);
   let healthValue;
-  // Если после фильтрации не осталось болезней (маловероятно), назначаем "Здоров"
-  if (filteredHealth.length === 0) {
+  if (healthObj.name === 'Здоров') {
     healthValue = 'Здоров';
   } else {
-    // 10% шанс на здоровье
-    if (Math.random() < 0.1) {
-      healthValue = 'Здоров';
-    } else {
-      // Выбираем случайную болезнь из отфильтрованных, исключая "Здоров"
-      const diseasesOnly = filteredHealth.filter(h => h.name !== 'Здоров');
-      if (diseasesOnly.length === 0) {
-        // Если в списке только "Здоров" (вряд ли), то присваиваем здоровье
-        healthValue = 'Здоров';
-      } else {
-        const randomDisease = diseasesOnly[Math.floor(Math.random() * diseasesOnly.length)];
-        const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
-        healthValue = `${randomDisease.name} (${severity})`;
-      }
-    }
+    const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
+    healthValue = `${healthObj.name} (${severity})`;
   }
-  // ============================================
+  usedValues.push(healthObj.name);
 
-  // Инвентарь
-  const inventory = takeRandomFromArray(availableInventory);
-
-  // Фобия
-  const phobia = takeRandomFromArray(availablePhobias);
-
-  // Доп. сведения
-  const extra = takeRandomFromArray(availableExtras);
-
+  // Формируем игрока
   const player = {
     id: uuidv4(),
     socketId,
