@@ -312,7 +312,7 @@ const STORY_MODELS = [
 
 
 // Функция для вызова нейросети с таймаутом
-async function callModelWithTimeout(model, prompt, timeoutMs = 60000) {
+async function callModelWithTimeout(model, prompt, timeoutMs = 40000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -3262,31 +3262,31 @@ function applyConsequencesFromFacts(game, facts, consequences) {
 
 // ============ API МАРШРУТ ДЛЯ ГЕНЕРАЦИИ ============
 app.post('/api/add-event', (req, res) => {
-    try {
-        const { gameId, text } = req.body;
-        const game = games.get(gameId);
-        if (!game) {
-            return res.status(404).json({ error: 'Игра не найдена' });
-        }
-        if (!text) {
-            return res.status(400).json({ error: 'Текст события не может быть пустым' });
-        }
-        if (!game.events) game.events = [];
-        const event = {
-            id: uuidv4(),
-            text: text,
-            timestamp: Date.now()
-        };
-        game.events.unshift(event);
-        if (game.events.length > 20) game.events = game.events.slice(0, 20);
-        games.set(gameId, game);
-        saveData();
-        io.to(gameId).emit('newEvent', event);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Ошибка добавления события:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+  try {
+    const { gameId, text } = req.body;
+    const game = games.get(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Игра не найдена' });
     }
+    if (!text) {
+      return res.status(400).json({ error: 'Текст события не может быть пустым' });
+    }
+    if (!game.events) game.events = [];
+    const event = {
+      id: uuidv4(),
+      text: text,
+      timestamp: Date.now()
+    };
+    game.events.unshift(event);
+    if (game.events.length > 20) game.events = game.events.slice(0, 20);
+    games.set(gameId, game);
+    saveData();
+    io.to(gameId).emit('newEvent', event);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Ошибка добавления события:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 app.get('/api/events/:gameId', (req, res) => {
@@ -3350,28 +3350,32 @@ app.post('/api/generate-final', async (req, res) => {
 
     const prompt = buildFinalPrompt(game);
 
-    // Пробуем модели по порядку
+    console.log('[FINAL] Generating final for game', gameId);
+    console.log('[FINAL] Prompt length:', prompt.length);
     let finalText = null;
     for (const model of STORY_MODELS) {
       try {
-        finalText = await callModelWithTimeout(model, prompt, 30000); // 30 сек
-        if (finalText) break;
+        console.log('[FINAL] Trying model:', model);
+        finalText = await callModelWithTimeout(model, prompt, 20000); // уменьшил до 20 сек
+        console.log('[FINAL] Model', model, 'returned:', finalText ? 'text length ' + finalText.length : 'empty');
+        if (finalText && finalText.trim()) break;
       } catch (error) {
-        console.log(`❌ Модель ${model} для финала не ответила:`, error.message);
+        console.error(`[FINAL] Model ${model} error:`, error.message);
       }
     }
-
-    if (!finalText) {
-      // Запасной вариант
+    if (!finalText || !finalText.trim()) {
       finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
+      console.log('[FINAL] Using fallback text');
     }
-
     res.json({ success: true, final: finalText });
 
   } catch (error) {
     console.error('❌ Ошибка генерации финала:', error);
     res.status(500).json({ error: error.message });
   }
+
+
+
 });
 
 
@@ -3586,6 +3590,15 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // После создания game, но перед отправкой игрокам
+    const hasHealthy = game.players.some(p => p.characteristics.health.value === 'Здоров');
+    if (!hasHealthy) {
+      // Выбираем случайного игрока и делаем его здоровым
+      const randomIndex = Math.floor(Math.random() * game.players.length);
+      game.players[randomIndex].characteristics.health.value = 'Здоров';
+      console.log(`[HEALTH] No healthy players found. Set ${game.players[randomIndex].name} to healthy.`);
+    }
+
     const gameId = uuidv4();
     const game = {
       id: gameId,
@@ -3603,18 +3616,18 @@ io.on('connection', (socket) => {
     // Инициализируем ресурсы бункера из инвентарей игроков
     initializeBunkerResources(game);
 
-// Раздача уникальных скрытых возможностей
-const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
-game.players.forEach((player, index) => {
-    if (index < shuffledAbilities.length) {
+    // Раздача уникальных скрытых возможностей
+    const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
+    game.players.forEach((player, index) => {
+      if (index < shuffledAbilities.length) {
         player.secretAbility = {
-            value: shuffledAbilities[index],
-            activated: false
+          value: shuffledAbilities[index],
+          activated: false
         };
-    } else {
+      } else {
         player.secretAbility = { value: "Нет способности", activated: false };
-    }
-});
+      }
+    });
 
 
     games.set(gameId, game);
@@ -3644,7 +3657,7 @@ game.players.forEach((player, index) => {
       });
     });
   });
-  
+
 
 
   socket.on('getGameData', ({ gameId }) => {
@@ -3710,20 +3723,20 @@ game.players.forEach((player, index) => {
     console.log(`Создатель ${initiator.name} изменил бункер (случайно) в игре ${gameId}`);
   });
 
-socket.on('activateAbility', ({ gameId }) => {
+  socket.on('activateAbility', ({ gameId }) => {
     const game = games.get(gameId);
     if (!game) {
-        socket.emit('error', 'Игра не найдена');
-        return;
+      socket.emit('error', 'Игра не найдена');
+      return;
     }
     const player = game.players.find(p => p.socketId === socket.id);
     if (!player) {
-        socket.emit('error', 'Игрок не найден');
-        return;
+      socket.emit('error', 'Игрок не найден');
+      return;
     }
     if (!player.secretAbility || player.secretAbility.activated) {
-        socket.emit('error', 'Способность уже активирована или отсутствует');
-        return;
+      socket.emit('error', 'Способность уже активирована или отсутствует');
+      return;
     }
     player.secretAbility.activated = true;
 
@@ -3731,9 +3744,9 @@ socket.on('activateAbility', ({ gameId }) => {
     if (!game.events) game.events = [];
     const eventText = `🃏 ${player.name} активировал скрытую возможность: ${player.secretAbility.value}`;
     const event = {
-        id: uuidv4(),
-        text: eventText,
-        timestamp: Date.now()
+      id: uuidv4(),
+      text: eventText,
+      timestamp: Date.now()
     };
     game.events.unshift(event);
     if (game.events.length > 20) game.events = game.events.slice(0, 20);
@@ -3743,7 +3756,7 @@ socket.on('activateAbility', ({ gameId }) => {
     io.to(gameId).emit('newEvent', event);
     emitGameUpdateFixed(gameId);
     console.log(`Способность активирована игроком ${player.name} в игре ${gameId}`);
-});
+  });
 
   socket.on('revealCharacteristic', ({ gameId, characteristic }) => {
     const game = games.get(gameId);
