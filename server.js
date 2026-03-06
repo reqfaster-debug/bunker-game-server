@@ -295,7 +295,6 @@ if (!OPENROUTER_API_KEY) {
 
 // Модели для разных целей
 const STORY_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-chat-v3.1',
   'google/gemma-3:free',
   'tng/deepseek-v3-0324:free',
@@ -313,7 +312,7 @@ const STORY_MODELS = [
 
 
 // Функция для вызова нейросети с таймаутом
-async function callModelWithTimeout(model, prompt, timeoutMs = 20000) {
+async function callModelWithTimeout(model, prompt, timeoutMs = 60000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
