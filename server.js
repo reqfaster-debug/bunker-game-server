@@ -244,32 +244,6 @@ function calculateBunkerSlots(playerCount) {
 }
 // =======================================================
 
-
-
-
-
-
-
-
-
-
-// Гарантирует, что в игре есть хотя бы один здоровый игрок
-function ensureAtLeastOneHealthy(game) {
-  const hasHealthy = game.players.some(p => p.characteristics.health.value === 'Здоров');
-  if (!hasHealthy) {
-    const alivePlayers = game.players.filter(p => !p.status);
-    if (alivePlayers.length > 0) {
-      const randomIndex = Math.floor(Math.random() * alivePlayers.length);
-      const player = alivePlayers[randomIndex];
-      player.characteristics.health.value = 'Здоров';
-      console.log(`✅ Принудительно установлено здоровье "Здоров" для игрока ${player.name} (гарантия минимум одного здорового).`);
-    } else {
-      console.warn('⚠️ В игре нет живых игроков!');
-    }
-  }
-}
-
-
 // Сохранение данных в файлы
 async function saveData() {
   try {
@@ -321,9 +295,20 @@ if (!OPENROUTER_API_KEY) {
 
 // Модели для разных целей
 const STORY_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'deepseek/deepseek-chat-v3.1',
+  'google/gemma-3:free',
+  'tng/deepseek-v3-0324:free',
+  'openai/gpt-4o-mini-2024-07-18',
+  'tng/deepseek-r1t2-chimera:free',
+  'meta-llama/llama-4-maverick:free',
+  'mistralai/mistral-small-3.2:free',
+  'xai/grok-4.1-fast:free',
+  'qwen/qwen3-32b:free',
+  'qwen/qwen3.5-flash-02-23',
+  'x-ai/grok-4',
   'google/gemini-2.0-flash-001',
-  'nex-agi/deepseek-v3.1-nex-n1:free',
-  'openai/gpt-4o-mini',
+  'openrouter/free'
 ];
 
 
@@ -344,7 +329,7 @@ async function callModelWithTimeout(model, prompt, timeoutMs = 20000) {
           }
         ],
         temperature: 1,
-        max_tokens: 2000
+        max_tokens: 10000
       },
       {
         headers: {
@@ -440,11 +425,7 @@ const GAME_DATA = {
 
     "Необъяснимое явление нарушило гравитацию в отдельных регионах планеты, заставляя предметы и людей терять вес или, наоборот, прижиматься к земле с чудовищной силой. Здания рушатся под собственной тяжестью, люди парят в воздухе, не в силах контролировать своё тело. Выжившие приспосабливаются к новым условиям, строят убежища с учётом аномалий и надеются, что явление не распространится дальше.",
 
-    "Эксперименты с адронным коллайдером привели к разрыву пространственно-временного континуума, создав временные петли в разных точках планеты. Люди исчезают на годы, чтобы появиться в том же месте секундой позже, или стареют за мгновения. Выжившие стараются обходить аномальные зоны, но петли расширяются, поглощая целые города. Учёные ищут способ стабилизировать пространство, но время на исходе.",
-
     "Из космоса на Землю попали микроскопические паразиты, способные контролировать нервную систему человека. Заражённые внешне выглядят нормально, но действуют в интересах паразита, уничтожая неинфицированных и захватывая власть. Общество погрузилось в паранойю: никто не знает, кто друг, а кто враг, и доверие стало смертельно опасной роскошью. Выжившие создают изолированные общины, проверяя каждого новоприбывшего неделями карантина.",
-
-    "Физический эксперимент вызвал квантовую нестабильность, из-за которой материя периодически исчезает и появляется в другом месте. Люди, предметы и целые здания телепортируются случайным образом, создавая хаос и разрушения. Выжившие не могут ничего планировать, ведь их убежище может исчезнуть в любой момент. Единственный шанс — найти зону стабильности и надеяться, что она не исчезнет следующей.",
 
     "Мутировавшая плесень начала стремительно распространяться по планете, пожирая всё органическое на своём пути. Споры проникают в лёгкие, убивая людей мучительной смертью, а грибница разрушает фундаменты зданий. Города зарастают чёрной и зелёной плесенью, превращаясь в безжизненные склепы. Выжившим приходится жечь всё вокруг огнемётами и носить герметичные костюмы, чтобы не вдохнуть смертоносные споры.",
 
@@ -997,7 +978,7 @@ const GAME_DATA = {
     genders: ['Мужской', 'Женский'],
 
 
-    bodyTypes: ['Худое', 'Атлетичное', 'Полное', 'Сильное ожирение'],
+    bodyTypes: ['Легкое', 'Атлетичное', 'Полное', 'Сильное ожирение'],
 
 
     traits: [
@@ -1260,238 +1241,232 @@ const GAME_DATA = {
 
 
 
-health: [
-  // ========== ОБЩИЕ (могут быть у всех) ==========
-  { name: 'Здоров', gender: 'any' },
-  { name: 'Анемия', gender: 'any' },
-  { name: 'Авитаминоз', gender: 'any' },
+    health: [
+      // Общие (для терапевта)
+      { name: 'Здоров' },
+      { name: 'Анемия' },
+      { name: 'Авитаминоз' },
 
-  // ========== КАРДИОЛОГИЯ (все общие) ==========
-  { name: 'Гипертония', gender: 'any' },
-  { name: 'Гипотония', gender: 'any' },
-  { name: 'Аритмия', gender: 'any' },
-  { name: 'Тахикардия', gender: 'any' },
-  { name: 'Брадикардия', gender: 'any' },
-  { name: 'Ишемия', gender: 'any' },
-  { name: 'Стенокардия', gender: 'any' },
-  { name: 'Инфаркт', gender: 'any' },
-  { name: 'Инсульт', gender: 'any' },
-  { name: 'Атеросклероз', gender: 'any' },
-  { name: 'Варикоз', gender: 'any' },      // чаще у женщин, но бывает у всех
-  { name: 'Тромбоз', gender: 'any' },
-  { name: 'Порок сердца', gender: 'any' },
-  { name: 'Кардиомиопатия', gender: 'any' },
+      // Кардиолог (сердечно-сосудистые)
+      { name: 'Гипертония' },
+      { name: 'Гипотония' },
+      { name: 'Аритмия' },
+      { name: 'Тахикардия' },
+      { name: 'Брадикардия' },
+      { name: 'Ишемия' },
+      { name: 'Стенокардия' },
+      { name: 'Атеросклероз' },
+      { name: 'Варикоз' },
+      { name: 'Тромбоз' },
+      { name: 'Порок сердца' },
+      { name: 'Кардиомиопатия' },
 
-  // ========== ОНКОЛОГИЯ ==========
-  { name: 'Онкология', gender: 'any' },             // общее название
-  { name: 'Рак легких', gender: 'any' },
-  { name: 'Рак желудка', gender: 'any' },
-  { name: 'Рак печени', gender: 'any' },
-  { name: 'Рак поджелудочной', gender: 'any' },
-  { name: 'Рак кишечника', gender: 'any' },
-  { name: 'Рак молочной железы', gender: 'female' }, // преимущественно женский
-  { name: 'Рак простаты', gender: 'male' },          // только мужчины
-  { name: 'Лейкоз', gender: 'any' },
-  { name: 'Лимфома', gender: 'any' },
-  { name: 'Меланома', gender: 'any' },
-  { name: 'Саркома', gender: 'any' },
-  { name: 'Глиобластома', gender: 'any' },
+      // Онколог (онкология)
+      { name: 'Онкология' },
+      { name: 'Рак легких' },
+      { name: 'Рак желудка' },
+      { name: 'Рак печени' },
+      { name: 'Рак поджелудочной' },
+      { name: 'Рак кишечника' },
+      { name: 'Рак молочной железы' },
+      { name: 'Рак простаты' },
+      { name: 'Лейкоз' },
+      { name: 'Лимфома' },
+      { name: 'Меланома' },
+      { name: 'Саркома' },
+      { name: 'Глиобластома' },
 
-  // ========== НЕВРОЛОГИЯ (все общие) ==========
-  { name: 'Эпилепсия', gender: 'any' },
-  { name: 'Мигрень', gender: 'any' },               // чаще у женщин
-  { name: 'Невралгия', gender: 'any' },
-  { name: 'Неврит', gender: 'any' },
-  { name: 'Радикулит', gender: 'any' },
-  { name: 'Остеохондроз', gender: 'any' },
-  { name: 'Грыжа', gender: 'any' },
-  { name: 'Паркинсон', gender: 'any' },
-  { name: 'Рассеянный склероз', gender: 'any' },    // чаще у женщин
-  { name: 'Болезнь Альцгеймера', gender: 'any' },
-  { name: 'Менингит', gender: 'any' },
-  { name: 'Энцефалит', gender: 'any' },
-  { name: 'Невропатия', gender: 'any' },
-  { name: 'Синдром Туретта', gender: 'any' },
 
-  // ========== ИНФЕКЦИИ (все общие) ==========
-  { name: 'Туберкулез', gender: 'any' },
-  { name: 'Гепатит A', gender: 'any' },
-  { name: 'Гепатит B', gender: 'any' },
-  { name: 'Гепатит C', gender: 'any' },
-  { name: 'ВИЧ', gender: 'any' },
-  { name: 'СПИД', gender: 'any' },
-  { name: 'Пневмония', gender: 'any' },
-  { name: 'Бронхит', gender: 'any' },
-  { name: 'Ангина', gender: 'any' },
-  { name: 'Грипп', gender: 'any' },
-  { name: 'ОРВИ', gender: 'any' },
-  { name: 'Корь', gender: 'any' },
-  { name: 'Краснуха', gender: 'any' },
-  { name: 'Ветрянка', gender: 'any' },
-  { name: 'Свинка', gender: 'any' },
-  { name: 'Коклюш', gender: 'any' },
-  { name: 'Дифтерия', gender: 'any' },
-  { name: 'Скарлатина', gender: 'any' },
-  { name: 'Малярия', gender: 'any' },
-  { name: 'Тиф', gender: 'any' },
-  { name: 'Холера', gender: 'any' },
-  { name: 'Чума', gender: 'any' },
-  { name: 'Сибирская язва', gender: 'any' },
-  { name: 'Бешенство', gender: 'any' },
-  { name: 'Столбняк', gender: 'any' },
-  { name: 'Ботулизм', gender: 'any' },
-  { name: 'Сальмонеллез', gender: 'any' },
-  { name: 'Дизентерия', gender: 'any' },
-  { name: 'Глисты', gender: 'any' },
-  { name: 'Аскаридоз', gender: 'any' },
+      // Невролог (неврологические)
+      { name: 'Эпилепсия' },
+      { name: 'Мигрень' },
+      { name: 'Невралгия' },
+      { name: 'Неврит' },
+      { name: 'Радикулит' },
+      { name: 'Остеохондроз' },
+      { name: 'Грыжа' },
+      { name: 'Паркинсон' },
+      { name: 'Рассеянный склероз' },
+      { name: 'Болезнь Альцгеймера' },
+      { name: 'Менингит' },
+      { name: 'Энцефалит' },
+      { name: 'Невропатия' },
+      { name: 'Синдром Туретта' },
 
-  // ========== ИММУНОЛОГИЯ (все общие) ==========
-  { name: 'Аллергия', gender: 'any' },
-  { name: 'Астма', gender: 'any' },
-  { name: 'Поллиноз', gender: 'any' },
-  { name: 'Крапивница', gender: 'any' },
-  { name: 'Отек Квинке', gender: 'any' },
-  { name: 'Анафилаксия', gender: 'any' },
-  { name: 'Экзема', gender: 'any' },
-  { name: 'Волчанка', gender: 'any' },               // чаще у женщин
-  { name: 'Ревматоидный артрит', gender: 'any' },
-  { name: 'Склеродермия', gender: 'any' },           // чаще у женщин
-  { name: 'Синдром Шегрена', gender: 'any' },        // чаще у женщин
-  { name: 'Болезнь Крона', gender: 'any' },
-  { name: 'Язвенный колит', gender: 'any' },
+      // Эпидемиолог/Инфекционист/Вирусолог (инфекционные)
+      { name: 'Туберкулез' },
+      { name: 'Гепатит A' },
+      { name: 'Гепатит B' },
+      { name: 'Гепатит C' },
+      { name: 'ВИЧ' },
+      { name: 'СПИД' },
+      { name: 'Пневмония' },
+      { name: 'Бронхит' },
+      { name: 'Ангина' },
+      { name: 'Грипп' },
+      { name: 'ОРВИ' },
+      { name: 'Корь' },
+      { name: 'Краснуха' },
+      { name: 'Ветрянка' },
+      { name: 'Свинка' },
+      { name: 'Коклюш' },
+      { name: 'Дифтерия' },
+      { name: 'Скарлатина' },
+      { name: 'Малярия' },
+      { name: 'Тиф' },
+      { name: 'Холера' },
+      { name: 'Чума' },
+      { name: 'Сибирская язва' },
+      { name: 'Бешенство' },
+      { name: 'Столбняк' },
+      { name: 'Ботулизм' },
+      { name: 'Сальмонеллез' },
+      { name: 'Дизентерия' },
+      { name: 'Глисты' },
+      { name: 'Аскаридоз' },
 
-  // ========== ДЕРМАТОЛОГИЯ (все общие) ==========
-  { name: 'Псориаз', gender: 'any' },
-  { name: 'Дерматит', gender: 'any' },
-  { name: 'Нейродермит', gender: 'any' },
-  { name: 'Себорея', gender: 'any' },
-  { name: 'Акне', gender: 'any' },
-  { name: 'Фурункулез', gender: 'any' },
-  { name: 'Карбункул', gender: 'any' },
-  { name: 'Абсцесс', gender: 'any' },
-  { name: 'Флегмона', gender: 'any' },
-  { name: 'Рожа', gender: 'any' },
-  { name: 'Грибок', gender: 'any' },
-  { name: 'Лишай', gender: 'any' },
-  { name: 'Чесотка', gender: 'any' },
-  { name: 'Педикулез', gender: 'any' },
-  { name: 'Ожог', gender: 'any' },
-  { name: 'Обморожение', gender: 'any' },
+      // Иммунолог (аутоиммунные и аллергии)
+      { name: 'Аллергия' },
+      { name: 'Астма' },
+      { name: 'Поллиноз' },
+      { name: 'Крапивница' },
+      { name: 'Отек Квинке' },
+      { name: 'Анафилаксия' },
+      { name: 'Экзема' },
+      { name: 'Волчанка' },
+      { name: 'Ревматоидный артрит' },
+      { name: 'Склеродермия' },
+      { name: 'Синдром Шегрена' },
+      { name: 'Болезнь Крона' },
+      { name: 'Язвенный колит' },
 
-  // ========== ТРАВМАТОЛОГИЯ (все общие) ==========
-  { name: 'Перелом', gender: 'any' },
-  { name: 'Вывих', gender: 'any' },
-  { name: 'Растяжение', gender: 'any' },
-  { name: 'Разрыв связок', gender: 'any' },
-  { name: 'Гематома', gender: 'any' },
-  { name: 'Рваная рана', gender: 'any' },
-  { name: 'Резаная рана', gender: 'any' },
-  { name: 'Колотая рана', gender: 'any' },
-  { name: 'Огнестрельное ранение', gender: 'any' },
-  { name: 'Сотрясение мозга', gender: 'any' },
-  { name: 'Черепно-мозговая травма', gender: 'any' },
-  { name: 'Повреждение мениска', gender: 'any' },
-  { name: 'Разрыв мышцы', gender: 'any' },
+      // Дерматолог (кожные)
+      { name: 'Псориаз' },
+      { name: 'Дерматит' },
+      { name: 'Нейродермит' },
+      { name: 'Себорея' },
+      { name: 'Акне' },
+      { name: 'Фурункулез' },
+      { name: 'Карбункул' },
+      { name: 'Абсцесс' },
+      { name: 'Флегмона' },
+      { name: 'Рожа' },
+      { name: 'Грибок' },
+      { name: 'Лишай' },
+      { name: 'Чесотка' },
+      { name: 'Педикулез' },
+      { name: 'Ожог' },
+      { name: 'Обморожение' },
 
-  // ========== ОФТАЛЬМОЛОГИЯ (все общие) ==========
-  { name: 'Катаракта', gender: 'any' },
-  { name: 'Глаукома', gender: 'any' },
-  { name: 'Конъюнктивит', gender: 'any' },
-  { name: 'Блефарит', gender: 'any' },
-  { name: 'Ячмень', gender: 'any' },
-  { name: 'Кератит', gender: 'any' },
-  { name: 'Близорукость', gender: 'any' },
-  { name: 'Дальнозоркость', gender: 'any' },
-  { name: 'Астигматизм', gender: 'any' },
-  { name: 'Косоглазие', gender: 'any' },
-  { name: 'Отслоение сетчатки', gender: 'any' },
+      // Травматолог (травмы)
+      { name: 'Перелом' },
+      { name: 'Разрыв связок' },
+      { name: 'Рваная рана' },
+      { name: 'Резаная рана' },
+      { name: 'Колотая рана' },
+      { name: 'Огнестрельное ранение' },
+      { name: 'Черепно-мозговая травма' },
+      { name: 'Повреждение мениска' },
 
-  // ========== ГИНЕКОЛОГИЯ / УРОЛОГИЯ ==========
-  { name: 'Эндометриоз', gender: 'female' },
-  { name: 'Миома матки', gender: 'female' },
-  { name: 'Киста яичника', gender: 'female' },
-  { name: 'Полип', gender: 'any' },                // может быть в разных местах
-  { name: 'Воспаление придатков', gender: 'female' },
-  { name: 'Молочница', gender: 'female' },         // у мужчин бывает крайне редко
-  { name: 'Бактериальный вагиноз', gender: 'female' },
-  { name: 'Герпес генитальный', gender: 'any' },
-  { name: 'Папилломавирус', gender: 'any' },
-  { name: 'Бесплодие', gender: 'any' },
-  { name: 'Импотенция', gender: 'male' },
-  { name: 'Простатит', gender: 'male' },
-  { name: 'Аденома простаты', gender: 'male' },
-  { name: 'Орхит', gender: 'male' },               // воспаление яичка
-  { name: 'Эпидидимит', gender: 'male' },          // воспаление придатка яичка
-  { name: 'Уретрит', gender: 'any' },
-  { name: 'Цистит', gender: 'any' },               // чаще у женщин, но бывает у мужчин
-  { name: 'Пиелонефрит', gender: 'any' },
 
-  // ========== ГАСТРОЭНТЕРОЛОГИЯ (все общие) ==========
-  { name: 'Гастрит', gender: 'any' },
-  { name: 'Язва', gender: 'any' },
-  { name: 'Гастродуоденит', gender: 'any' },
-  { name: 'Панкреатит', gender: 'any' },
-  { name: 'Холецистит', gender: 'any' },
-  { name: 'Желчекаменная болезнь', gender: 'any' }, // чаще у женщин
-  { name: 'Колит', gender: 'any' },
-  { name: 'Энтерит', gender: 'any' },
-  { name: 'Дисбактериоз', gender: 'any' },
-  { name: 'Изжога', gender: 'any' },
-  { name: 'Рефлюкс', gender: 'any' },
-  { name: 'Запор', gender: 'any' },
-  { name: 'Диарея', gender: 'any' },
-  { name: 'Геморрой', gender: 'any' },
-  { name: 'Анальная трещина', gender: 'any' },
+      // Офтальмолог (глазные)
+      { name: 'Катаракта' },
+      { name: 'Глаукома' },
+      { name: 'Конъюнктивит' },
+      { name: 'Блефарит' },
+      { name: 'Ячмень' },
+      { name: 'Кератит' },
+      { name: 'Близорукость' },
+      { name: 'Дальнозоркость' },
+      { name: 'Астигматизм' },
+      { name: 'Косоглазие' },
+      { name: 'Отслоение сетчатки' },
 
-  // ========== ПСИХИАТРИЯ (все общие) ==========
-  { name: 'Депрессия', gender: 'any' },
-  { name: 'Тревожность', gender: 'any' },
-  { name: 'Панические атаки', gender: 'any' },
-  { name: 'ПТСР', gender: 'any' },
-  { name: 'Шизофрения', gender: 'any' },
-  { name: 'Биполярное расстройство', gender: 'any' },
-  { name: 'Невроз', gender: 'any' },
-  { name: 'Истерия', gender: 'any' },               // исторически чаще у женщин
-  { name: 'Паранойя', gender: 'any' },
-  { name: 'Деменция', gender: 'any' },
-  { name: 'Галлюцинации', gender: 'any' },
-  { name: 'Бред', gender: 'any' },
-  { name: 'ОКР', gender: 'any' },
-  { name: 'Анорексия', gender: 'any' },             // чаще у женщин
-  { name: 'Булимия', gender: 'any' },               // чаще у женщин
-  { name: 'Бессонница', gender: 'any' },
-  { name: 'Лунатизм', gender: 'any' },
+      // Гинеколог (половая сфера)
+      { name: 'Эндометриоз' },
+      { name: 'Миома матки' },
+      { name: 'Киста яичника' },
+      { name: 'Полип' },
+      { name: 'Воспаление придатков' },
+      { name: 'Молочница' },
+      { name: 'Бактериальный вагиноз' },
+      { name: 'Герпес генитальный' },
+      { name: 'Папилломавирус' },
+      { name: 'Бесплодие' },
+      { name: 'Импотенция' },
+      { name: 'Простатит' },
+      { name: 'Аденома простаты' },
+      { name: 'Орхит' },
+      { name: 'Эпидидимит' },
+      { name: 'Уретрит' },
+      { name: 'Цистит' },
+      { name: 'Пиелонефрит' },
 
-  // ========== ЛОР (все общие) ==========
-  { name: 'Отит', gender: 'any' },
-  { name: 'Синусит', gender: 'any' },
-  { name: 'Гайморит', gender: 'any' },
-  { name: 'Фронтит', gender: 'any' },
-  { name: 'Ринит', gender: 'any' },
-  { name: 'Фарингит', gender: 'any' },
-  { name: 'Ларингит', gender: 'any' },
-  { name: 'Тонзиллит', gender: 'any' },
-  { name: 'Аденоиды', gender: 'any' },
-  { name: 'Тугоухость', gender: 'any' },
-  { name: 'Глухота', gender: 'any' },
-  { name: 'Потеря голоса', gender: 'any' },
+      // Гастроэнтеролог (ЖКТ)
+      { name: 'Гастрит' },
+      { name: 'Язва' },
+      { name: 'Гастродуоденит' },
+      { name: 'Панкреатит' },
+      { name: 'Холецистит' },
+      { name: 'Желчекаменная болезнь' },
+      { name: 'Колит' },
+      { name: 'Энтерит' },
+      { name: 'Дисбактериоз' },
+      { name: 'Изжога' },
+      { name: 'Рефлюкс' },
+      { name: 'Запор' },
+      { name: 'Диарея' },
+      { name: 'Геморрой' },
 
-  // ========== ПРОЧИЕ ==========
-  { name: 'Радиационное поражение', gender: 'any' },
-  { name: 'Лучевая болезнь', gender: 'any' },
-  { name: 'Отравление', gender: 'any' },
-  { name: 'Интоксикация', gender: 'any' },
-  { name: 'Сепсис', gender: 'any' },
-  { name: 'Заражение крови', gender: 'any' },
-  { name: 'Гангрена', gender: 'any' },
-  { name: 'Некроз', gender: 'any' },
-  { name: 'Фимоз', gender: 'male' },               // только у мужчин
-  { name: 'Парафимоз', gender: 'male' },           // только у мужчин
-  { name: 'Водянка', gender: 'any' },              // общее
-  { name: 'Асцит', gender: 'any' },
-  { name: 'Подагра', gender: 'any' },
-  { name: 'Ревматизм', gender: 'any' }
-],
+
+      // Психиатр (психические)
+      { name: 'Панические атаки' },
+      { name: 'ПТСР' },
+      { name: 'Шизофрения' },
+      { name: 'Биполярное расстройство' },
+      { name: 'Невроз' },
+      { name: 'Истерия' },
+      { name: 'Паранойя' },
+      { name: 'Деменция' },
+      { name: 'Галлюцинации' },
+      { name: 'Бред' },
+      { name: 'Анорексия' },
+      { name: 'Булимия' },
+      { name: 'Бессонница' },
+      { name: 'Лунатизм' },
+
+
+      // ЛОР
+      { name: 'Отит' },
+      { name: 'Синусит' },
+      { name: 'Гайморит' },
+      { name: 'Фронтит' },
+      { name: 'Ринит' },
+      { name: 'Фарингит' },
+      { name: 'Ларингит' },
+      { name: 'Тонзиллит' },
+      { name: 'Аденоиды' },
+      { name: 'Тугоухость' },
+      { name: 'Глухота' },
+      { name: 'Потеря голоса' },
+
+
+      // Прочие
+      { name: 'Радиационное поражение' },
+      { name: 'Лучевая болезнь' },
+      { name: 'Отравление' },
+      { name: 'Интоксикация' },
+      { name: 'Сепсис' },
+      { name: 'Заражение крови' },
+      { name: 'Гангрена' },
+      { name: 'Некроз' },
+      { name: 'Фимоз' },
+      { name: 'Парафимоз' },
+      { name: 'Водянка' },
+      { name: 'Асцит' },
+      { name: 'Подагра' },
+      { name: 'Ревматизм' }
+    ],
     inventory: [
       // Медицинские предметы (15)
       'Аптечка (полный набор медикаментов)',
@@ -2152,81 +2127,48 @@ function formatHealthValue(diseases) {
   return diseases.map(d => `${d.name} (${d.severity})`).join(', ');
 }
 // ========================================================
-// Функция генерации игрока (с защитой от дубликатов, привязкой стажа к возрасту, фильтрацией по полу и 10% шансом на здоровье)
-// Функция генерации игрока (полная защита от дубликатов)
+
+// Функция генерации игрока
+// Функция генерации игрока (ПОЛНАЯ ЗАЩИТА ОТ ДУБЛИКАТОВ)
 function generatePlayer(name, socketId) {
-  // Массивы-источники
-  const sourceGenders = GAME_DATA.characteristics.genders;
-  const sourceBodyTypes = GAME_DATA.characteristics.bodyTypes;
-  const sourceTraits = GAME_DATA.characteristics.traits;
-  const sourceProfessions = GAME_DATA.characteristics.professions;
-  const sourceHobbies = GAME_DATA.characteristics.hobbies;
-  const sourceHealth = GAME_DATA.characteristics.health;
-  const sourceInventory = GAME_DATA.characteristics.inventory;
-  const sourcePhobias = GAME_DATA.characteristics.phobias;
-  const sourceExtras = GAME_DATA.characteristics.extras;
+  // Копии всех массивов для безопасного выбора
+  const availableGenders = [...GAME_DATA.characteristics.genders];
+  const availableBodyTypes = [...GAME_DATA.characteristics.bodyTypes];
+  const availableTraits = [...GAME_DATA.characteristics.traits];
+  const availableProfessions = [...GAME_DATA.characteristics.professions]; // копия объектов!
+  const availableHobbies = [...GAME_DATA.characteristics.hobbies];
+  const availableHealth = [...GAME_DATA.characteristics.health]; // копия объектов!
+  const availableInventory = [...GAME_DATA.characteristics.inventory];
+  const availablePhobias = [...GAME_DATA.characteristics.phobias];
+  const availableExtras = [...GAME_DATA.characteristics.extras];
 
-  const usedValues = []; // здесь будем хранить все уже выбранные значения
-
-  // Вспомогательная функция для выбора случайного элемента из массива,
-  // исключая элементы, присутствующие в usedValues
-  function pickRandom(array, nameExtractor = (item) => item) {
-    // Отфильтровываем элементы, которые уже есть в usedValues
-    const filtered = array.filter(item => !usedValues.includes(nameExtractor(item)));
-    if (filtered.length === 0) {
-      // Если не осталось уникальных элементов, выбираем случайный из исходных (крайний случай)
-      console.warn('Не осталось уникальных значений, выбираем случайное из исходных');
-      const randomIndex = Math.floor(Math.random() * array.length);
-      return array[randomIndex];
-    }
-    const randomIndex = Math.floor(Math.random() * filtered.length);
-    return filtered[randomIndex];
+  // Функция для получения случайного индекса с удалением элемента
+  function takeRandomFromArray(array) {
+    if (array.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * array.length);
+    return array.splice(randomIndex, 1)[0];
   }
 
   // Пол и возраст
-  const gender = pickRandom(sourceGenders);
-  const age = Math.floor(Math.random() * (80 - 20 + 1)) + 20; // возраст 20–80
-  usedValues.push(gender);
+  const gender = takeRandomFromArray(availableGenders);
+  const age = Math.floor(Math.random() * (80 - 18 + 1)) + 18;
 
   // Телосложение
-  const bodyType = pickRandom(sourceBodyTypes);
-  usedValues.push(bodyType);
+  const bodyType = takeRandomFromArray(availableBodyTypes);
 
   // Черта характера
-  const trait = pickRandom(sourceTraits);
-  usedValues.push(trait);
+  const trait = takeRandomFromArray(availableTraits);
 
   // Профессия (объект)
-  const professionObj = pickRandom(sourceProfessions, (p) => p.name);
-  const experience = generateExperienceByAge(age);
+  const professionObj = takeRandomFromArray(availableProfessions);
+  const experience = Math.floor(Math.random() * 30) + 1;
   const professionValue = `${professionObj.name} (стаж ${experience} лет)`;
-  usedValues.push(professionObj.name);
 
   // Хобби
-  const hobby = pickRandom(sourceHobbies);
-  usedValues.push(hobby);
+  const hobby = takeRandomFromArray(availableHobbies);
 
-  // Инвентарь
-  const inventory = pickRandom(sourceInventory);
-  usedValues.push(inventory);
-
-  // Фобия
-  const phobia = pickRandom(sourcePhobias);
-  usedValues.push(phobia);
-
-  // Доп. сведения
-  const extra = pickRandom(sourceExtras);
-  usedValues.push(extra);
-
-  // Здоровье с учётом пола
-  const playerGender = gender; // 'Мужской' или 'Женский'
-  const filteredHealth = sourceHealth.filter(h => {
-    if (!h.gender || h.gender === 'any') return true;
-    if (playerGender === 'Мужской' && h.gender === 'male') return true;
-    if (playerGender === 'Женский' && h.gender === 'female') return true;
-    return false;
-  });
-  const healthObj = pickRandom(filteredHealth, (h) => h.name);
+  // Здоровье (объект)
+  const healthObj = takeRandomFromArray(availableHealth);
   let healthValue;
   if (healthObj.name === 'Здоров') {
     healthValue = 'Здоров';
@@ -2234,9 +2176,17 @@ function generatePlayer(name, socketId) {
     const severity = HEALTH_SEVERITIES[Math.floor(Math.random() * HEALTH_SEVERITIES.length)];
     healthValue = `${healthObj.name} (${severity})`;
   }
-  usedValues.push(healthObj.name);
 
-  // Формируем игрока
+  // Инвентарь
+  const inventory = takeRandomFromArray(availableInventory);
+
+  // Фобия
+  const phobia = takeRandomFromArray(availablePhobias);
+
+  // Доп. сведения
+  const extra = takeRandomFromArray(availableExtras);
+
+  // Создаём игрока (ВСЕ ЗНАЧЕНИЯ УНИКАЛЬНЫ)
   const player = {
     id: uuidv4(),
     socketId,
@@ -2261,15 +2211,8 @@ function generatePlayer(name, socketId) {
 }
 
 // ============ НОВЫЕ ФУНКЦИИ ДЛЯ ЗДОРОВЬЯ ============
-function getRandomHealth(gender = 'any') {
-  const allHealth = GAME_DATA.characteristics.health;
-  const filtered = allHealth.filter(h => {
-    if (!h.gender || h.gender === 'any') return true;
-    if (gender === 'male' && h.gender === 'male') return true;
-    if (gender === 'female' && h.gender === 'female') return true;
-    return false;
-  });
-  const healthBase = filtered[Math.floor(Math.random() * filtered.length)];
+function getRandomHealth() {
+  const healthBase = GAME_DATA.characteristics.health[Math.floor(Math.random() * GAME_DATA.characteristics.health.length)];
   if (healthBase.name === 'Здоров') {
     return 'Здоров';
   }
@@ -2285,78 +2228,74 @@ function extractHealthName(healthString) {
   const match = healthString.match(/^([^(]+)/);
   return match ? match[1].trim() : healthString;
 }
-
-// Извлечение возраста из строки пола формата "Мужской (35 лет)"
-function extractAgeFromGender(genderString) {
-    if (!genderString) return 18; // значение по умолчанию
-    const match = genderString.match(/\((\d+)\s*лет\)/);
-    if (match && match[1]) {
-        return parseInt(match[1]);
-    }
-    return 18; // fallback
-}
-
-// Генерация стажа в зависимости от возраста по заданной таблице
-function generateExperienceByAge(age) {
-    if (age >= 18 && age <= 20) {
-        return 1;
-    } else if (age >= 21 && age <= 25) {
-        return Math.floor(Math.random() * 2) + 1; // 1-2
-    } else if (age >= 26 && age <= 30) {
-        return Math.floor(Math.random() * 4) + 2; // 2-5
-    } else if (age >= 31 && age <= 36) {
-        return Math.floor(Math.random() * 5) + 4; // 4-8
-    } else if (age >= 37 && age <= 45) {
-        return Math.floor(Math.random() * 11) + 5; // 5-15
-    } else if (age >= 46 && age <= 50) {
-        return Math.floor(Math.random() * 18) + 5; // 5-22
-    } else { // 51 и старше
-        return Math.floor(Math.random() * 25) + 6; // 6-30
-    }
-}
 // ====================================================
 
-// Функция для получения шанса лечения по стажу
-function getHealChance(experience) {
-    if (experience >= 25 && experience <= 30) return 100;
-    if (experience >= 20 && experience <= 24) return 90;
-    if (experience >= 15 && experience <= 19) return 80;
-    if (experience >= 10 && experience <= 14) return 70;
-    if (experience >= 5 && experience <= 9) return 60;
-    if (experience >= 1 && experience <= 4) return 55;
-    return 50; // на всякий случай
-}
 
-// Функция для изменения степени тяжести болезни на указанное количество шагов
-// delta: положительное - ухудшение, отрицательное - улучшение
-// Возвращает новую строку здоровья, 'DEATH' (смерть) или 'Здоров'
+
+
 function adjustDiseaseSeverity(healthString, delta) {
-    const diseases = parseHealthValue(healthString);
-    if (diseases.length === 0) return healthString;
+  console.log(`[adjust] Вход: healthString="${healthString}", delta=${delta}`);
 
-    const severities = ['легкая', 'средняя', 'тяжелая', 'критическая'];
-    // Для простоты лечим первую болезнь (можно доработать под выбор конкретной)
-    const disease = diseases[0];
-    const currentIndex = severities.indexOf(disease.severity);
+  const diseases = parseHealthValue(healthString);
+  if (diseases.length === 0) {
+    console.log('[adjust] Болезней нет, возвращаем исходное');
+    return healthString;
+  }
 
-    let newIndex = currentIndex + delta;
+  const severities = ['легкая', 'средняя', 'тяжелая', 'критическая'];
+  const disease = diseases[0]; // лечим первую болезнь
+  const currentSeverity = disease.severity;
+  const currentIndex = severities.indexOf(currentSeverity);
 
-    if (newIndex < 0) {
-        // Полное излечение
-        return 'Здоров';
-    } else if (newIndex >= severities.length) {
-        // Превышение критической степени - смерть
-        return 'DEATH';
-    } else {
-        disease.severity = severities[newIndex];
-        return formatHealthValue(diseases);
-    }
+  console.log(`[adjust] Текущая степень: "${currentSeverity}", индекс: ${currentIndex}`);
+
+  // Если степень не найдена в списке – возможно, она хранится без скобок (только название)
+  if (currentIndex === -1) {
+    console.log('[adjust] Степень не распознана! Принудительно устанавливаем "легкая"');
+    disease.severity = 'легкая';
+    // Пересчитываем индекс
+    const newCurrentIndex = 0;
+    let newIndex = newCurrentIndex + delta;
+    console.log(`[adjust] Новый индекс после исправления: ${newIndex}`);
+    if (newIndex < 0) return 'Здоров';
+    if (newIndex >= severities.length) return 'DEATH';
+    disease.severity = severities[newIndex];
+    const result = formatHealthValue(diseases);
+    console.log(`[adjust] Результат после исправления: ${result}`);
+    return result;
+  }
+
+  let newIndex = currentIndex + delta;
+  console.log(`[adjust] Новый индекс: ${newIndex}`);
+
+  if (newIndex < 0) {
+    console.log('[adjust] Индекс < 0 → полное излечение');
+    return 'Здоров';
+  }
+  if (newIndex >= severities.length) {
+    console.log('[adjust] Индекс >= длины → смерть');
+    return 'DEATH';
+  }
+
+  disease.severity = severities[newIndex];
+  const result = formatHealthValue(diseases);
+  console.log(`[adjust] Новая степень: ${disease.severity}, результат: ${result}`);
+  return result;
 }
+
+
+
+
+
+
+
+
 
 
 // ============ НОВЫЕ ФУНКЦИИ ДЛЯ ХАРАКТЕРИСТИК ============
-function getRandomValue(charKey, currentValue = null, age = null) {
-  console.log(`getRandomValue called for ${charKey}, current: ${currentValue}, age: ${age}`);
+// ============ ФУНКЦИЯ ДЛЯ ХАРАКТЕРИСТИК (ПОЛНАЯ ЗАЩИТА ОТ ДУБЛИКАТОВ) ============
+function getRandomValue(charKey, player, excludeAllOthers = true) {
+  console.log(`getRandomValue called for ${charKey}, player: ${player.name}`);
 
   const keyMapping = {
     'gender': 'genders',
@@ -2371,52 +2310,81 @@ function getRandomValue(charKey, currentValue = null, age = null) {
   };
 
   const dataKey = keyMapping[charKey] || charKey;
-  const charData = GAME_DATA.characteristics[dataKey];
+  let sourceArray = GAME_DATA.characteristics[dataKey];
 
-  if (!charData) {
+  if (!sourceArray) {
     console.log(`No data for ${charKey} (looked for ${dataKey})`);
     return '—';
   }
 
-  let newValue;
-  const maxAttempts = 50;
-  let attempts = 0;
+  // Собираем ВСЕ уже использованные значения этого игрока
+  const usedValues = [];
+
+  if (excludeAllOthers) {
+    // Добавляем значения из всех характеристик, кроме текущей
+    Object.entries(player.characteristics).forEach(([key, char]) => {
+      if (key !== charKey && char.value && char.value !== '—') {
+        // Для профессии, здоровья и инвентаря может быть особый формат
+        if (key === 'profession') {
+          // Извлекаем название профессии из строки "Хирург (стаж 5 лет)"
+          const profMatch = char.value.match(/^([^(]+)/);
+          if (profMatch) usedValues.push(profMatch[1].trim());
+        } else if (key === 'health' && char.value !== 'Здоров') {
+          // Извлекаем название болезни из строки "Грипп (тяжелая)"
+          const healthMatch = char.value.match(/^([^(]+)/);
+          if (healthMatch) usedValues.push(healthMatch[1].trim());
+        } else {
+          usedValues.push(char.value);
+        }
+      }
+    });
+  }
+
+  // Фильтруем доступные значения
+  let availableValues;
 
   if (charKey === 'profession') {
-    do {
-      const prof = charData[Math.floor(Math.random() * charData.length)];
-      // Если возраст передан, используем его, иначе генерируем случайный стаж от 1 до 30 (старое поведение)
-      let exp;
-      if (age !== null) {
-        exp = generateExperienceByAge(age);
-      } else {
-        exp = Math.floor(Math.random() * 20) + 1; // резерв
-      }
-      newValue = `${prof.name} (стаж ${exp} лет)`;
-      attempts++;
-    } while (newValue === currentValue && attempts < maxAttempts);
-    return newValue;
+    // Для профессий фильтруем по названию
+    availableValues = sourceArray.filter(prof => {
+      return !usedValues.some(used => used === prof.name);
+    });
+  } else if (charKey === 'health') {
+    // Для здоровья фильтруем по названию болезни
+    availableValues = sourceArray.filter(health => {
+      if (health.name === 'Здоров') return true; // Здоров можно оставить
+      return !usedValues.some(used => used === health.name);
+    });
+  } else {
+    // Для простых массивов строк
+    availableValues = sourceArray.filter(val => !usedValues.includes(val));
   }
 
-  if (charKey === 'gender') {
-    do {
-      const gender = charData[Math.floor(Math.random() * charData.length)];
-      // Для пола возраст нужен, но он передаётся отдельно? Нет, мы не можем менять возраст через эту функцию.
-      // Возраст при генерации пола не меняется, поэтому используем переданный age, если есть, иначе старый вариант
-      const genAge = (age !== null) ? age : Math.floor(Math.random() * (80 - 18 + 1)) + 18;
-      newValue = `${gender} (${genAge} лет)`;
-      attempts++;
-      console.log(`Gender attempt ${attempts}: ${newValue}`);
-    } while (newValue === currentValue && attempts < maxAttempts);
-    return newValue;
+  // Если после фильтрации ничего не осталось, создаём копию всего массива
+  if (availableValues.length === 0) {
+    console.warn(`Нет уникальных значений для ${charKey}, создаём копию`);
+    availableValues = [...sourceArray];
   }
 
-  // Для всех остальных характеристик
-  do {
-    newValue = charData[Math.floor(Math.random() * charData.length)];
-    attempts++;
-    console.log(`${charKey} attempt ${attempts}: ${newValue}`);
-  } while (newValue === currentValue && attempts < maxAttempts);
+  // Выбираем случайное значение
+  const randomIndex = Math.floor(Math.random() * availableValues.length);
+  let newValue = availableValues[randomIndex];
+
+  // Форматируем в зависимости от типа характеристики
+  if (charKey === 'profession') {
+    const prof = newValue;
+    const experience = Math.floor(Math.random() * 20) + 1;
+    newValue = `${prof.name} (стаж ${experience} лет)`;
+  } else if (charKey === 'gender') {
+    const age = Math.floor(Math.random() * (80 - 18 + 1)) + 18;
+    newValue = `${newValue} (${age} лет)`;
+  } else if (charKey === 'health') {
+    if (newValue.name === 'Здоров') {
+      newValue = 'Здоров';
+    } else {
+      const severity = getRandomSeverity();
+      newValue = `${newValue.name} (${severity})`;
+    }
+  }
 
   return newValue;
 }
@@ -2551,21 +2519,303 @@ const ItemRegistry = {
 const LocationRegistry = [
   'заброшенная больница', 'старая заправка', 'руины магазина', 'лесопосадка', 'овраг',
   'брошенный дом', 'подвал', 'чердак', 'железнодорожная станция', 'ферма',
-  'овощехранилище', 'гараж', 'стройка', 'кладбище', 'школа', 'водонапорная башня'
+  'овощехранилище', 'гараж', 'стройка', 'школа', 'водонапорная башня'
 ];
 
 const ThreatRegistry = [
-  'бродячие собаки', 'мародеры', 'мутанты', 'бандиты', 'одичавшие псы',
-  'крысы', 'кабаны', 'медведь', 'сектанты', 'радиация'
+  // Животные (оставляем)
+  'бродячие собаки', 'одичавшие псы', 'крысы', 'кабаны', 'медведь', 'волки', 'стая шакалов',
+
+  // Люди-одиночки
+  'мародёр-одиночка', 'сумасшедший бродяга', 'отчаявшийся выживальщик', 'беглый каторжник',
+  'одинокий сталкер', 'дезертир', 'бомж с ломом', 'пьяный охотник', 'фанатик-одиночка',
+
+  // Группы людей
+  'мародёры', 'бандиты', 'сектанты', 'каннибалы', 'рабы', 'беглые каторжники',
+  'вооружённая группа', 'рейдеры', 'грабители', 'налетчики', 'шайка воров',
+  'банда байкеров', 'дезертиры', 'фанатики', 'секта жнецов', 'культисты', 'чернокнижники',
+
+  // Враждебные фракции
+  'соседняя группировка', 'конкуренты за ресурсы', 'чужаки', 'незнакомцы с оружием',
+  'вооружённые до зубов люди', 'люди в защитных костюмах', 'заражённые безумцы',
+
+  // Психопаты
+  'психопат с ножом', 'безумец', 'человек с топором', 'маньяк', 'убийца', 'садист',
+  'бывший палач', 'живодёр', 'каннибал-одиночка',
+
+  // Специфические типажи
+  'бывший военный', 'наёмник', 'киллер', 'снайпер', 'поджигатель', 'пироман',
+  'работорговец', 'торговец людьми', 'коллектор', 'вышибала', 'головорез',
+
+  // Группы по профессиям
+  'бывшие полицейские', 'зэки', 'бывшие охранники', 'вахтовики', 'геологи',
+  'шахтёры с динамитом', 'лесники с ружьями', 'охотники', 'браконьеры',
+
+  // Дополнительные
+  'пьяная компания', 'наркоманы', 'боевики', 'террористы',
+  'диверсанты', 'разведчики враждебной группы',
+  'радиация', // оставляем природную угрозу
+
+  // Торговцы и обмен
+  'странствующий торговец', 'меняла', 'человек с рюкзаком товаров', 'бродячий аптекарь',
+  'торговец оружием', 'скупщик металлолома', 'человек, предлагающий обмен',
+
+  // Медики и помощь
+  'странствующий врач', 'фельдшер с аптечкой', 'медсестра', 'знахарь', 'целитель',
+  'человек с лекарствами', 'ветеринар', 'костоправ',
+
+  // Умельцы и специалисты
+  'бродячий механик', 'инженер с инструментами', 'электрик', 'сварщик', 'оружейник',
+  'сапёр', 'взрывник', 'слесарь', 'плотник', 'строитель',
+
+  // Информаторы и сталкеры
+  'картограф', 'человек с картами', 'информатор', 'старик-знахарь',
+  'местный житель', 'беженец', 'выживший из соседнего бункера',
+
+  // Одиночки с добрыми намерениями
+  'путник с провизией', 'охотник, делящийся добычей', 'рыбак с уловом',
+  'старушка с семенами', 'женщина с детьми', 'семья выживших',
+
+
+  // Религиозные и философские (нейтральные)
+  'странствующий монах', 'проповедник', 'философ', 'отшельник', 'пустынник', 'группа хоббихорсеров', 'группа хоббихорсеров', 'группа хоббихорсеров',
+
+  // Дети и беззащитные (могут быть как положительными, так и бременем)
+  'потерявшийся ребёнок', 'подросток-сирота', 'пожилая пара', 'инвалид',
+
+  // Находки и случайные бонусы (не люди, но можно оставить для разнообразия)
+  'заброшенный схрон', 'военный склад', 'медицинский чемоданчик', 'ящик с провизией', 'ключ от сейфа',
+  'ключ от сейфа', 'ключ от сейфа', 'ключ от сейфа',
+
+
+
 ];
 
 const InjuryRegistry = [
-  'Перелом', 'Вывих', 'Растяжение', 'Рваная рана', 'Колотая рана', 'Сотрясение мозга',
-  'Пневмония', 'Ангина', 'ОРВИ', 'Отравление', 'Ожог', 'Обморожение'
+  'Перелом',
+  'Пневмония', 'Ангина', 'ОРВИ', 'Отравление', 'Ожог',
+  'Обморожение', 'Анемия',
+  'Варикоз', 'Тромбоз', 'Кардиомиопатия', 'Онкология',
+  'Лейкоз', 'Лимфома', 'Меланома', 'Саркома', 'Глиобластома', 'Эпилепсия',
+  'Невралгия', 'Неврит', 'Радикулит', 'Остеохондроз', 'Грыжа', 'Паркинсон', 'Рассеянный склероз',
+  'Болезнь Альцгеймера', 'Менингит', 'Энцефалит', 'Невропатия', 'Синдром Туретта', 'Туберкулез',
+  'Гепатит A', 'Гепатит B', 'Гепатит C', 'ВИЧ', 'СПИД', 'Пневмония', 'Бронхит', 'Ангина', 'Грипп',
+  'ОРВИ', 'Корь', 'Краснуха', 'Ветрянка', 'Свинка', 'Коклюш', 'Дифтерия', 'Скарлатина', 'Малярия', 'Тиф',
+  'Холера', 'Чума', 'Сибирская язва', 'Бешенство', 'Столбняк', 'Ботулизм', 'Сальмонеллез', 'Дизентерия', 'Глисты',
+  'Аскаридоз', 'Аллергия', 'Астма', 'Поллиноз', 'Крапивница', 'Отек Квинке', 'Анафилаксия', 'Экзема', 'Волчанка',
+  'Ревматоидный артрит', 'Склеродермия', 'Синдром Шегрена', 'Болезнь Крона', 'Язвенный колит', 'Псориаз', 'Дерматит',
+  'Нейродермит', 'Себорея', 'Акне', 'Фурункулез', 'Карбункул', 'Абсцесс', 'Флегмона', 'Рожа', 'Грибок', 'Лишай', 'Чесотка',
+  'Педикулез', 'Ожог', 'Обморожение', 'Перелом', 'Рваная рана', 'Резаная рана',
+  'Колотая рана', 'Огнестрельное ранение', 'Черепно-мозговая травма', 'Повреждение мениска',
+  'Катаракта', 'Глаукома', 'Конъюнктивит', 'Блефарит', 'Ячмень', 'Кератит',
+  'Косоглазие', 'Отслоение сетчатки', 'Эндометриоз', 'Миома матки', 'Киста яичника', 'Полип', 'Воспаление придатков',
+  'Молочница', 'Бактериальный вагиноз', 'Герпес генитальный', 'Папилломавирус', 'Бесплодие', 'Импотенция', 'Простатит',
+  'Аденома простаты', 'Орхит', 'Эпидидимит', 'Уретрит', 'Цистит', 'Пиелонефрит', 'Гастрит', 'Язва', 'Гастродуоденит', 'Панкреатит', 'Холецистит',
+  'Желчекаменная болезнь', 'Колит', 'Энтерит', 'Дисбактериоз', 'Изжога', 'Рефлюкс', 'Запор', 'Диарея', 'Геморрой',
+  'Панические атаки', 'Шизофрения', 'Биполярное расстройство', 'Невроз', 'Истерия', 'Паранойя',
+  'Галлюцинации', 'Бред', 'ОКР', 'Анорексия', 'Булимия', 'Бессонница', 'Лунатизм', 'Отит', 'Синусит', 'Гайморит', 'Фронтит',
+  'Ринит', 'Фарингит', 'Ларингит', 'Тонзиллит', 'Аденоиды', 'Тугоухость', 'Глухота', 'Потеря голоса', 'Радиационное поражение',
+  'Лучевая болезнь', 'Отравление', 'Интоксикация', 'Сепсис', 'Заражение крови', 'Гангрена', 'Некроз', 'Фимоз', 'Парафимоз', 'Водянка', 'Асцит', 'Подагра', 'Ревматизм',
 ];
+
+
+const PhobiaRegistry = [
+  // Фобии, связанные с животными (10)
+  'Арахнофобия (боязнь пауков)',
+  'Кинофобия (боязнь собак)',
+  'Айлурофобия (боязнь кошек)',
+  'Офидиофобия (боязнь змей)',
+  'Мусофобия (боязнь мышей)',
+  'Энтомофобия (боязнь насекомых)',
+  'Апифобия (боязнь пчел)',
+  'Орнитофобия (боязнь птиц)',
+
+
+  // Фобии, связанные с природой и стихиями (10)
+  'Акрофобия (боязнь высоты)',
+  'Клаустрофобия (боязнь замкнутых пространств)',
+  'Агорафобия (боязнь открытых пространств)',
+  'Бронтофобия (боязнь грома)',
+  'Астрапофобия (боязнь молний)',
+  'Гидрофобия (боязнь воды)',
+  'Пирафобия (боязнь огня)',
+  'Никтофобия (боязнь темноты)',
+  'Анемофобия (боязнь ветра)',
+  'Криофобия (боязнь холода)',
+
+  // Фобии, связанные с людьми и социумом (12)    
+  'Демофобия (боязнь толпы)',
+  'Социофобия (боязнь общества)',
+  'Аутофобия (боязнь одиночества)',
+  'Катагелофобия (боязнь насмешек)',
+  'Скоптофобия (боязнь пристального взгляда)',
+  'Эрейтофобия (боязнь покраснеть)',
+  'Геронтофобия (боязнь стариков)',
+  'Педиофобия (боязнь детей)',
+  'Ксенофобия (боязнь чужаков)',
+  'Фобофобия (боязнь страха)',
+  'Энозофобия (боязнь осуждения)',
+
+  // Фобии, связанные с болезнями и медициной (12)
+  'Нозокомефобия (боязнь больниц)',
+  'Ятрофобия (боязнь врачей)',
+  'Гематофобия (боязнь крови)',
+  'Травматофобия (боязнь травм)',
+  'Алгофобия (боязнь боли)',
+  'Кардиофобия (боязнь сердечного приступа)',
+  'Канцерофобия (боязнь рака)',
+  'Мизофобия (боязнь грязи)',
+  'Гермофобия (боязнь микробов)',
+  'Нозофобия (боязнь заболеть)',
+  'Фармакофобия (боязнь лекарств)',
+  'Токсофобия (боязнь отравления)',
+
+  // Фобии, связанные с едой и телесными функциями (10)
+  'Цибофобия (боязнь приготовленной пищи)',
+  'Эметофобия (боязнь рвоты)',
+  'Копрофобия (боязнь фекалий)',
+  'Урофобия (боязнь мочи)',
+  'Галофобия (боязнь говорить)',
+  'Одинофагия (боязнь глотать)',
+  'Пнигофобия (боязнь подавиться)',
+
+
+  // Фобии, связанные с предметами и ситуациями (12)
+  'Айхмофобия (боязнь острых предметов)',
+  'Баллистофобия (боязнь оружия)',
+  'Хоплофобия (боязнь огнестрельного оружия)',
+  'Амаксофобия (боязнь автомобилей)',
+  'Авиафобия (боязнь полетов)',
+  'Клептофобия (боязнь воров)',
+  'Охлофобия (боязнь толпы)',
+  'Рипофобия (боязнь грязи)',
+  'Папирофобия (боязнь бумаги)',
+  'Гефирофобия (боязнь мостов)',
+  'Крематофобия (боязнь денег)',
+
+  // Фобии, связанные с психологическими состояниями (10)
+  'Атаксиофобия (боязнь беспорядка)',
+  'Децидофобия (боязнь принимать решения)',
+  'Гипенгиофобия (боязнь ответственности)',
+  'Кайрофобия (боязнь новых ситуаций)',
+  'Метрофобия (боязнь поэзии)',
+  'Гнозиофобия (боязнь знаний)',
+  'Софиофобия (боязнь учиться)',
+  'Эпистемофобия (боязнь знаний)',
+  'Логофобия (боязнь слов)',
+  'Ателофобия (боязнь несовершенства)',
+
+  // Фобии, связанные с паранормальным (8)
+  'Фазмофобия (боязнь призраков)',
+  'Ликантропофобия (боязнь оборотней)',
+  'Демонофобия (боязнь демонов)',
+  'Гатофобия (боязнь ведьм)',
+  'Психрофобия (боязнь холода)',
+  'Небулофобия (боязнь тумана)',
+  'Скелетофобия (боязнь скелетов)',
+  'Тафофобия (боязнь быть похороненным заживо)',
+
+  // СЕКСУАЛЬНЫЕ ФОБИИ (15)
+  'Аграфобия (боязнь сексуальных домогательств)',
+  'Контрелтофобия (боязнь стать жертвой домогательств)',
+  'Агонофобия (боязнь быть изнасилованным)',
+  'Генофобия (боязнь полового акта)',
+  'Коитофобия (страх полового акта)',
+  'Эротофобия (боязнь полового акта)',
+  'Миксеофобия (боязнь обнажаться)',
+  'Гимнофобия (боязнь наготы)',
+  'Андрофобия (боязнь мужчин)',
+  'Гинофобия (боязнь женщин)',
+  'Гинекофобия (боязнь женщин)',
+  'Гетерофобия (боязнь противоположного пола)',
+  'Филофобия (боязнь влюбленности)',
+  'Гамофобия (боязнь брака)',
+  'Партенофобия (боязнь девственниц)',
+
+  // ФОБИИ ПОЛОВЫХ ОРГАНОВ (8)
+  'Итифаллофобия (боязнь эрегированного мужского органа)',
+  'Фаллофобия (боязнь мужского полового органа)',
+  'Вагинофобия (боязнь женских половых органов)',
+  'Медомалакуфобия (боязнь потери эрекции)',
+  'Онейрогмофобия (боязнь ночной эякуляции)',
+  'Примейзодофобия (боязнь потерять девственность)',
+  'Парафобия (боязнь собственных фетишей)',
+  'Онанофобия (боязнь последствий мастурбации)',
+
+  // ФОБИИ ПОСЛЕДСТВИЙ СЕКСА (7)
+  'Гравидофобия (боязнь беременности)',
+  'Токофобия (боязнь родов)',
+  'Венерофобия (боязнь заразиться венерическими болезнями)',
+  'Спидофобия (боязнь заразиться ВИЧ)',
+  'Сифилософобия (боязнь заразиться сифилисом)',
+  'Нозофобия (боязнь болезней)',
+  'Аматофобия (боязнь пыли)',
+
+  // ФОБИИ ИНТИМНОСТИ (8)
+  'Гаптофобия (боязнь прикосновений)',
+  'Филемафобия (боязнь поцелуев)',
+  'Гаптефобия (боязнь касаний)',
+  'Бромидрофобия (боязнь запаха тела)',
+  'Осмофобия (боязнь запахов тела)',
+  'Аутомизофобия (боязнь плохо пахнуть)',
+  'Каунофобия (боязнь быть привлекательным)',
+  'Калигинефобия (боязнь красивых женщин)',
+
+  // ДОПОЛНИТЕЛЬНЫЕ ПОШЛЫЕ ФОБИИ (8)
+  'Экзаудоризм (боязнь быть подслушанным в интимный момент)',
+  'Анабозифобия (боязнь быть застигнутым в интимный момент)',
+  'Фроттефобия (боязнь тереться о других в людных местах)',
+  'Диспсихофобия (боязнь сойти с ума от желаний)',
+  'Синтелофобия (боязнь обнажаться перед женщинами)',
+  'Гимнофобия (боязнь раздеваться)',
+  'Миксофобия (боязнь половых контактов из-за стыда)',
+
+  // Пост-апокалиптические фобии (10)
+  'Некрофобия (боязнь трупов)',
+  'Танатофобия (боязнь смерти)',
+  'Кенофобия (боязнь пустоты)',
+  'Топофобия (боязнь определенных мест)',
+  'Атазагорафобия (боязнь забыть важное)',
+  'Дромофобия (боязнь переходить улицу)',
+  'Эргофобия (боязнь работы)',
+  'Сомнифобия (боязнь сна)',
+  'Гипнофобия (боязнь заснуть)',
+  'Эозофобия (боязнь рассвета)',
+
+  // Дополнительные фобии (10)
+  'Трихофобия (боязнь волос)',
+  'Онихофобия (боязнь ногтей)',
+  'Одонтофобия (боязнь зубов)',
+  'Эйсоптрофобия (боязнь зеркал)',
+  'Погонофобия (боязнь бороды)',
+  'Аблютофобия (боязнь купания)',
+  'Хроматофобия (боязнь цветов)',
+  'Панфобия (боязнь всего)',
+  'Уранофобия (боязнь рая)',
+  'Стаурологическая фобия (боязнь распятия)',
+  'Ригмофобия (боязнь трещин)',
+  'Катагелиофобия (боязнь обрушения зданий)',
+];
+const ABILITY_LIST = [
+  "Может один раз избежать смерти",
+  "Может украсть еду у другого игрока",
+  "Может подслушать разговор",
+  "Может спрятаться на один раунд",
+  "Может вылечить себя",
+  "Может саботировать голосование",
+  "Может добавить дополнительный голос",
+  "Может обменяться характеристикой с другим",
+  "Может узнать тайную цель другого",
+  "Может разбудить всех ночью"
+];
+
 // =======================================================
 
-// ============ ШАБЛОНЫ ФАКТОВ (НЕ ТЕКСТА!) ============
+
+
+
+
+// ============ ШАБЛОНЫ ФАКТОВ (С ШАНСАМИ НА ФОБИИ) ============
 const EventTemplates = [
   {
     id: 'attack',
@@ -2577,7 +2827,8 @@ const EventTemplates = [
       { type: 'injury', description: 'травма' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'add_disease', target: facts.target, value: facts.injury },
+      { type: 'maybe_add_disease', target: facts.target, value: facts.injury, chance: 0.5 },
+      { type: 'maybe_add_phobia', target: facts.target, chance: 0.4 }, // 40% шанс на фобию
       { type: 'maybe_remove_item', target: facts.target, category: 'food', chance: 0.3 }
     ])
   },
@@ -2590,7 +2841,7 @@ const EventTemplates = [
       { type: 'location', description: 'где нашел' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'add_item', target: facts.hero, value: facts.item }
+      { type: 'maybe_add_item', target: facts.hero, value: facts.item, chance: 0.7 }
     ])
   },
   {
@@ -2606,9 +2857,10 @@ const EventTemplates = [
       { type: 'injured', description: 'пострадавший' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'add_disease', target: facts.injured, value: facts.injury },
-      { type: 'add_item', target: facts.hero, value: facts.item1 },
-      { type: 'add_item', target: 'bunker', value: facts.item2 }
+      { type: 'maybe_add_disease', target: facts.injured, value: facts.injury, chance: 0.5 },
+      { type: 'maybe_add_phobia', target: facts.injured, chance: 0.4 }, // 40% шанс на фобию для пострадавшего
+      { type: 'maybe_add_item', target: facts.hero, value: facts.item1, chance: 0.7 },
+      { type: 'maybe_add_item', target: 'bunker', value: facts.item2, chance: 0.7 }
     ])
   },
   {
@@ -2620,7 +2872,7 @@ const EventTemplates = [
       { type: 'activity', description: 'причина' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'remove_item', target: facts.hero, value: facts.item }
+      { type: 'maybe_remove_item', target: facts.hero, value: facts.item, chance: 0.4 }
     ])
   },
   {
@@ -2632,7 +2884,8 @@ const EventTemplates = [
       { type: 'injury', description: 'травма' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'add_disease', target: facts.hero, value: facts.injury }
+      { type: 'maybe_add_disease', target: facts.hero, value: facts.injury, chance: 0.5 },
+      { type: 'maybe_add_phobia', target: facts.hero, chance: 0.4 } // 40% шанс на фобию
     ])
   },
   {
@@ -2644,7 +2897,8 @@ const EventTemplates = [
       { type: 'item', description: 'что украли' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'remove_item', target: facts.target, value: facts.item }
+      { type: 'maybe_remove_item', target: facts.target, value: facts.item, chance: 0.4 },
+      { type: 'maybe_add_phobia', target: facts.target, chance: 0.4 } // 40% шанс на фобию
     ])
   },
   {
@@ -2657,8 +2911,8 @@ const EventTemplates = [
       { type: 'item2', description: 'вторая находка' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'add_item', target: facts.hero, value: facts.item1 },
-      { type: 'add_item', target: 'bunker', value: facts.item2 }
+      { type: 'maybe_add_item', target: facts.hero, value: facts.item1, chance: 0.7 },
+      { type: 'maybe_add_item', target: 'bunker', value: facts.item2, chance: 0.7 }
     ])
   },
   {
@@ -2671,8 +2925,9 @@ const EventTemplates = [
       { type: 'injury', description: 'травма' }
     ],
     possibleConsequences: (facts) => ([
-      { type: 'add_disease', target: facts.hero, value: facts.injury },
-      { type: 'add_item', target: 'bunker', value: facts.item }
+      { type: 'maybe_add_disease', target: facts.hero, value: facts.injury, chance: 0.5 },
+      { type: 'maybe_add_phobia', target: facts.hero, chance: 0.4 }, // 40% шанс на фобию
+      { type: 'maybe_add_item', target: 'bunker', value: facts.item, chance: 0.7 }
     ])
   }
 ];
@@ -2844,12 +3099,24 @@ function generateEventFacts(game) {
 // =======================================================
 
 // ============ ФУНКЦИЯ ПРИМЕНЕНИЯ ПОСЛЕДСТВИЙ ============
+// ============ ФУНКЦИЯ ПРИМЕНЕНИЯ ПОСЛЕДСТВИЙ (С ШАНСАМИ И ФОБИЯМИ) ============
 function applyConsequencesFromFacts(game, facts, consequences) {
   const results = [];
 
   for (const cons of consequences) {
     switch (cons.type) {
+      // ===== БОЛЕЗНИ =====
       case 'add_disease':
+      case 'maybe_add_disease':
+        // Проверяем шанс
+        if (cons.type === 'maybe_add_disease' && cons.chance !== undefined) {
+          if (Math.random() >= cons.chance) {
+            console.log(`❌ Шанс ${cons.chance * 100}% не сработал для болезни ${cons.value}`);
+            continue;
+          }
+          console.log(`✅ Шанс ${cons.chance * 100}% сработал для болезни ${cons.value}`);
+        }
+
         const player = cons.target;
         if (!player || !player.characteristics.health.revealed) continue;
 
@@ -2884,7 +3151,39 @@ function applyConsequencesFromFacts(game, facts, consequences) {
         results.push(`- ${player.name}: ${cons.value} (${randomSeverity})<br>`);
         break;
 
+      // ===== ФОБИИ (НОВОЕ) =====
+      case 'maybe_add_phobia':
+        // Проверяем шанс
+        if (cons.chance !== undefined && Math.random() >= cons.chance) {
+          console.log(`❌ Шанс ${cons.chance * 100}% не сработал для фобии`);
+          continue;
+        }
+
+        const phobiaPlayer = cons.target;
+        if (!phobiaPlayer) continue;
+
+        // Выбираем случайную фобию из реестра
+        const randomPhobia = PhobiaRegistry[Math.floor(Math.random() * PhobiaRegistry.length)];
+
+        // Устанавливаем фобию (заменяем существующую)
+        phobiaPlayer.characteristics.phobia.value = randomPhobia;
+
+        results.push(`- ${phobiaPlayer.name}: приобретена фобия ${randomPhobia}<br>`);
+        console.log(`✅ Добавлена фобия "${randomPhobia}" игроку ${phobiaPlayer.name}`);
+        break;
+
+      // ===== ПРЕДМЕТЫ =====
       case 'add_item':
+      case 'maybe_add_item':
+        // Проверяем шанс
+        if (cons.type === 'maybe_add_item' && cons.chance !== undefined) {
+          if (Math.random() >= cons.chance) {
+            console.log(`❌ Шанс ${cons.chance * 100}% не сработал для предмета ${cons.value}`);
+            continue;
+          }
+          console.log(`✅ Шанс ${cons.chance * 100}% сработал для предмета ${cons.value}`);
+        }
+
         const target = cons.target === 'bunker' ? null : cons.target;
         if (target && !target.characteristics.inventory.revealed) continue;
 
@@ -2903,42 +3202,54 @@ function applyConsequencesFromFacts(game, facts, consequences) {
         }
         break;
 
+      // ===== УДАЛЕНИЕ ПРЕДМЕТОВ =====
       case 'remove_item':
-        const victim = cons.target;
-        if (!victim || !victim.characteristics.inventory.revealed) continue;
-
-        const items = victim.characteristics.inventory.value.split(',').map(i => i.trim());
-        const newItems = items.filter(i => !i.includes(cons.value));
-
-        if (newItems.length === 0) {
-          victim.characteristics.inventory.value = '—';
-        } else {
-          victim.characteristics.inventory.value = newItems.join(', ');
-        }
-        results.push(`- ${victim.name}: потерян ${cons.value}<br>`);
-        break;
-
       case 'maybe_remove_item':
-        if (Math.random() >= cons.chance) continue;
-
-        const maybeVictim = cons.target;
-        if (!maybeVictim || !maybeVictim.characteristics.inventory.revealed) continue;
-
-        const allItems = maybeVictim.characteristics.inventory.value.split(',').map(i => i.trim());
-        const categoryItems = allItems.filter(i =>
-          i.includes('еды') || i.includes('консерв') || i.includes('тушенк')
-        );
-
-        if (categoryItems.length > 0) {
-          const lostItem = categoryItems[0];
-          const filtered = allItems.filter(i => i !== lostItem);
-
-          if (filtered.length === 0) {
-            maybeVictim.characteristics.inventory.value = '—';
-          } else {
-            maybeVictim.characteristics.inventory.value = filtered.join(', ');
+        // Проверяем шанс
+        if (cons.type === 'maybe_remove_item' && cons.chance !== undefined) {
+          if (Math.random() >= cons.chance) {
+            console.log(`❌ Шанс ${cons.chance * 100}% не сработал для потери предмета ${cons.value}`);
+            continue;
           }
-          results.push(`- ${maybeVictim.name}: потерян ${lostItem}<br>`);
+          console.log(`✅ Шанс ${cons.chance * 100}% сработал для потери предмета ${cons.value}`);
+        }
+
+        // Определяем цель
+        if (cons.category) {
+          // Случай для maybe_remove_item с категорией (из оригинального кода)
+          const maybeVictim = cons.target;
+          if (!maybeVictim || !maybeVictim.characteristics.inventory.revealed) continue;
+
+          const allItems = maybeVictim.characteristics.inventory.value.split(',').map(i => i.trim());
+          const categoryItems = allItems.filter(i =>
+            i.includes('еды') || i.includes('консерв') || i.includes('тушенк')
+          );
+
+          if (categoryItems.length > 0) {
+            const lostItem = categoryItems[0];
+            const filtered = allItems.filter(i => i !== lostItem);
+
+            if (filtered.length === 0) {
+              maybeVictim.characteristics.inventory.value = '—';
+            } else {
+              maybeVictim.characteristics.inventory.value = filtered.join(', ');
+            }
+            results.push(`- ${maybeVictim.name}: потерян ${lostItem}<br>`);
+          }
+        } else {
+          // Обычное удаление конкретного предмета
+          const victim = cons.target;
+          if (!victim || !victim.characteristics.inventory.revealed) continue;
+
+          const items = victim.characteristics.inventory.value.split(',').map(i => i.trim());
+          const newItems = items.filter(i => !i.includes(cons.value));
+
+          if (newItems.length === 0) {
+            victim.characteristics.inventory.value = '—';
+          } else {
+            victim.characteristics.inventory.value = newItems.join(', ');
+          }
+          results.push(`- ${victim.name}: потерян ${cons.value}<br>`);
         }
         break;
     }
@@ -2949,370 +3260,84 @@ function applyConsequencesFromFacts(game, facts, consequences) {
 // =======================================================
 
 
-// Функция для генерации истории из фактов
-// ============ ФУНКЦИЯ ДЛЯ ВЫЗОВА НЕЙРОСЕТИ ============
-async function generateStoryFromFacts(facts, template, game) {
 
-  // Собираем информацию о раскрытых характеристиках и ИНВЕНТАРЕ игроков
-  const playersContext = {};
+// ============ API МАРШРУТ ДЛЯ ГЕНЕРАЦИИ ============
+app.post('/api/add-event', (req, res) => {
+    try {
+        const { gameId, text } = req.body;
+        const game = games.get(gameId);
+        if (!game) {
+            return res.status(404).json({ error: 'Игра не найдена' });
+        }
+        if (!text) {
+            return res.status(400).json({ error: 'Текст события не может быть пустым' });
+        }
+        if (!game.events) game.events = [];
+        const event = {
+            id: uuidv4(),
+            text: text,
+            timestamp: Date.now()
+        };
+        game.events.unshift(event);
+        if (game.events.length > 20) game.events = game.events.slice(0, 20);
+        games.set(gameId, game);
+        saveData();
+        io.to(gameId).emit('newEvent', event);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Ошибка добавления события:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+app.get('/api/events/:gameId', (req, res) => {
+  const { gameId } = req.params;
+  const game = games.get(gameId);
+
+  if (!game) {
+    return res.status(404).json({ error: 'Игра не найдена' });
+  }
+
+  res.json({ events: game.events || [] });
+});
+
+
+
+
+function buildFinalPrompt(game) {
+  // Данные катастрофы и бункера
+  let prompt = `Сгенерируй финал игры "Бункер" в виде хронологии выживания по годам.\n\n`;
+  prompt += `КАТАСТРОФА:\n${game.disaster}\n\n`;
+  prompt += `БУНКЕР:\nСрок: ${game.bunker.duration_years} лет, Еда: на ${game.bunker.food_years} лет\n${game.bunker.extra}\n\n`;
+
+  // Информация об игроках (только раскрытые характеристики)
+  prompt += `ИГРОКИ (только раскрытая информация):\n`;
   game.players.forEach(player => {
-    const revealed = {};
+    if (player.status === 'kicked' || player.status === 'dead') return; // мёртвые/изгнанные не участвуют в финале? обычно финал для оставшихся
+    const revealed = [];
     Object.entries(player.characteristics).forEach(([key, char]) => {
       if (char.revealed) {
-        revealed[key] = char.value;
+        revealed.push(`${key}: ${char.value}`);
       }
     });
-    if (Object.keys(revealed).length > 0) {
-      playersContext[player.name] = revealed;
+    if (revealed.length > 0) {
+      prompt += `\n${player.name}:\n`;
+      revealed.forEach(line => prompt += `  ${line}\n`);
     }
   });
 
-  // Формируем описание фактов для нейросети
-  let factsDescription = '';
+  prompt += `\nТРЕБОВАНИЯ К ФИНАЛУ:\n`;
+  prompt += `- Хронология по годам: год 1, год 2, ... до последнего года (согласно сроку бункера) или до момента гибели группы.\n`;
+  prompt += `- Стиль: захватывающий, реалистичный, с элементами чёрного юмора, пикантными подробностями, упоминаниями интимных отношений между игроками (если это логично вытекает из их характеристик).\n`;
+  prompt += `- Длина: от 20 до 40 предложений.\n`;
+  prompt += `- Исход должен зависеть от раскрытых характеристик: если характеристики бесполезны или вредны, группа может погибнуть (голод, болезни, конфликты). Если есть полезные навыки – шансы на выживание выше.\n`;
+  prompt += `- Используй имена игроков как в списке выше.\n`;
+  prompt += `- Не добавляй информацию, которой нет в раскрытых характеристиках.\n`;
+  prompt += `- Финал должен быть законченным (либо все выжили, либо погибли, либо частично).\n`;
 
-  switch (template.id) {
-    case 'attack':
-      factsDescription = `Факты события:
-- На кого напали: ${facts.target.name}
-- Кто напал: ${facts.threat}
-- Где: ${facts.location}
-- Травма: ${facts.injury}`;
-      break;
-
-    case 'find':
-      factsDescription = `Факты события:
-- Кто нашел: ${facts.hero.name}
-- Что нашел: ${facts.item}
-- Где нашел: ${facts.location}`;
-      break;
-
-    case 'find_with_risk':
-      factsDescription = `Факты события:
-- Кто нашел: ${facts.hero.name}
-- Помощник: ${facts.helper.name}
-- Первая находка: ${facts.item1}
-- Вторая находка: ${facts.item2}
-- Где нашли: ${facts.location}
-- Кто пострадал: ${facts.injured.name}
-- Травма: ${facts.injury}`;
-      break;
-
-    case 'break':
-      factsDescription = `Факты события:
-- У кого сломалось: ${facts.hero.name}
-- Что сломалось: ${facts.item}
-- Причина: ${facts.activity}`;
-      break;
-
-    case 'accident':
-      factsDescription = `Факты события:
-- Пострадавший: ${facts.hero.name}
-- Где: ${facts.location}
-- Травма: ${facts.injury}`;
-      break;
-
-    case 'theft':
-      factsDescription = `Факты события:
-- Жертва: ${facts.target.name}
-- Вор: ${facts.threat}
-- Что украли: ${facts.item}`;
-      break;
-
-    case 'discover_cache':
-      factsDescription = `Факты события:
-- Кто нашел: ${facts.hero.name}
-- Где: ${facts.location}
-- Первая находка: ${facts.item1}
-- Вторая находка: ${facts.item2}`;
-      break;
-
-    case 'hunting':
-      factsDescription = `Факты события:
-- Охотник: ${facts.hero.name}
-- Животное: ${facts.animal}
-- Добыча: ${facts.item}
-- Травма: ${facts.injury}`;
-      break;
-  }
-
-  // Формируем контекст раскрытых характеристик
-  let contextText = '';
-  if (Object.keys(playersContext).length > 0) {
-    contextText = 'РАСКРЫТЫЕ ХАРАКТЕРИСТИКИ ИГРОКОВ:\n';
-    for (const [playerName, chars] of Object.entries(playersContext)) {
-      contextText += `${playerName}: `;
-      const charStrings = [];
-      if (chars.profession) charStrings.push(`профессия ${chars.profession}`);
-      if (chars.trait) charStrings.push(`характер ${chars.trait}`);
-      if (chars.hobby) charStrings.push(`хобби ${chars.hobby}`);
-      if (chars.phobia) charStrings.push(`фобия ${chars.phobia}`);
-      if (chars.extra) charStrings.push(`особенность ${chars.extra}`);
-      if (chars.inventory) charStrings.push(`инвентарь: ${chars.inventory}`);
-      contextText += charStrings.join(', ') + '\n';
-    }
-  }
-
-  const prompt = `Ты генератор историй для игры "Бункер". Сгенерируй событие (5-6 предложений) на основе фактов.
-
-**КРИТИЧЕСКИ ВАЖНЫЕ ПРАВИЛА (НАРУШЕНИЕ НЕДОПУСТИМО):**
-
-1. **МЕСТО ДЕЙСТВИЯ - ТОЛЬКО У ВХОДА В БУНКЕР**
-   - Игроки НИКОГДА не отходят от входа
-   - Все события происходят непосредственно у входа в бункер или в нескольких метрах от него
-   - Игроки всегда находятся в поле зрения друг друга
-   - Нельзя писать про "отошел к лесу", "пошел к ручью", "направился к ферме"
-   - Только: "стоял у входа", "сидел рядом со входом", "осматривал территорию у входа"
-
-2. **УЧЕТ ФОБИЙ И ЧЕРТ ХАРАКТЕРА**
-   - Если у игрока есть фобия, связанная с событием - это должно влиять на его поведение
-   - Если у игрока есть черта характера (трусливый, храбрый, импульсивный) - это должно проявляться
-   - Фобии могут усиливать негативные последствия или создавать дополнительные проблемы
-   - Черты характера определяют, как игрок реагирует на событие
-   - Пример: трусливый игрок может замереть от страха, храбрый - броситься помогать
-
-3. **ПРЕДМЕТЫ МОЖНО УПОМИНАТЬ ТОЛЬКО ЕСЛИ ОНИ ЕСТЬ В ФАКТАХ ИЛИ РАСКРЫТОМ ИНВЕНТАРЕ**
-   - Если в фактах события указан предмет (например, "охотничий нож") - его можно использовать
-   - Если у игрока в раскрытых характеристиках есть инвентарь - предметы оттуда можно упоминать
-   - НЕЛЬЗЯ придумывать предметы, которых нет ни в фактах, ни в инвентаре игрока
-
-4. **БОЛЕЗНИ И ТРАВМЫ ДОЛЖНЫ БЫТЬ ЯВНО УКАЗАНЫ В ТЕКСТЕ**
-   - Нельзя писать "ударился" - нужно писать "получил ушиб (тяжелый)"
-   - Нельзя писать "порезался" - нужно писать "получил резаную рану (легкая)"
-   - Всегда указывай конкретную болезнь в скобках с тяжестью
-
-5. **НАХОДКА ЕДЫ ДОЛЖНА БЫТЬ ЯВНО УКАЗАНА С КОЛИЧЕСТВОМ МЕСЯЦЕВ**
-   - Нельзя писать "нашел консервы" - нужно писать "нашел ящик консервов (+3 месяца к запасам еды)"
-   - Всегда указывай точное количество месяцев в скобках
-
-6. **ТОЛЬКО ВНЕШНИЕ ФАКТОРЫ**
-   - Нападение (животные, люди, мутанты) - приходят ко входу
-   - Природные явления (ураган, обвал, падение дерева, молния) - случаются у входа
-   - Несчастные случаи (падение, порез, ожог) - происходят у входа
-   - Находки - обнаруживаются у входа
-   - Встреча с другими выжившими - они подходят ко входу
-
-7. **СТРУКТУРА РАССКАЗА (ТОЛЬКО ОДИН ВАРИАНТ):**
-   **СОБЫТИЕ ПРИХОДИТ К ИГРОКАМ (100% случаев):**
-   1. Кто-то из игроков находится у входа в бункер
-   2. Учитывается его фобия или черта характера в реакции на событие
-   3. Событие происходит прямо у входа или в непосредственной близости
-   4. Игроки остаются у входа с последствиями
-
-8. **ЗАПРЕЩЕНО:**
-   - Пафосные фразы про "судьбу", "надежду", "тьму", "напряжение"
-   - Описание мыслей и переживаний (кроме реакций, связанных с фобиями)
-   - Добавление любых предметов, которых нет в фактах
-   - Любые смерти или пропажи игроков
-   - Упоминание споров, конфликтов, ссор между игроками
-   - Любые перемещения игроков от входа - они всегда рядом
-
-9. **ВАЖНО: Игроки НИКУДА НЕ УХОДЯТ**
-   - Нельзя писать "отошел", "пошел", "направился", "отправился"
-   - Нельзя писать "вернулся" - потому что игрок никуда не уходил
-   - Только: "стоял у входа", "находился рядом", "осматривал территорию у входа"
-
-${contextText}
-
-${factsDescription}
-
-**ПРИМЕРЫ ПРАВИЛЬНЫХ СОБЫТИЙ С УЧЕТОМ ФОБИЙ И ЧЕРТ ХАРАКТЕРА:**
-
-**ПРИМЕР 1 - Фобия (боязнь собак):**
-Алексей, страдающий кинофобией (боязнь собак), стоял у входа в бункер, когда из темноты выбежала одичавшая собака. Он в панике отшатнулся, споткнулся о камень и упал, получив ушиб копчика (легкий). Дима, не боящийся собак, отогнал животное камнями.
-
-Последствия:
-- Алексей: ушиб копчика (легкий)<br>
-
-**ПРИМЕР 2 - Черта характера (трусливый):**
-Дима, известный своей трусливостью, стоял у входа в бункер, когда недалеко раздался громкий треск. Он резко дернулся и порезал руку об острый край металлической двери, получив резаную рану (легкая). На самом деле это просто упало сухое дерево.
-
-Последствия:
-- Дима: резаная рана (легкая)<br>
-
-**ПРИМЕР 3 - Черта характера (храбрый) + фобия (высоты):**
-Храбрый Алексей, но страдающий акрофобией, полез на скалу рядом со входом, чтобы осмотреть окрестности. На полпути у него закружилась голова от страха высоты, он сорвался и упал, получив перелом руки (средний). Дима помог ему добраться до входа.
-
-Последствия:
-- Алексей: перелом руки (средний)<br>
-
-**ПРИМЕР 4 - Фобия (боязнь замкнутых пространств):**
-Мария, страдающая клаустрофобией, заглянула в техническую нишу у входа в бункер, где что-то блестело. В тесном пространстве у нее началась паника, она резко выдернула руку и поранила ее о торчащую арматуру, получив рваную рану предплечья (средняя). Из ниши выпал ржавый ящик с консервами (+2 месяца).
-
-Последствия:
-- Мария: рваная рана (средняя)<br>
-- Бункер: +2 месяца еды<br>
-
-**ПРИМЕР 5 - Черта характера (импульсивный):**
-Импульсивный Дима, увидев в кустах недалеко от входа какое-то движение, бросился туда, не предупредив остальных. Он провалился в яму, прикрытую ветками, и получил ушиб ноги (средний). Выбраться ему помогли Алексей и Мария.
-
-Последствия:
-- Дима: ушиб ноги (средний)<br>
-
-**ПРИМЕР 6 - Фобия (боязнь темноты) + черта (осторожный):**
-Алексей, боящийся темноты, стоял у входа с фонариком, освещая окрестности. Его осторожность помогла заметить приближающихся бандитов. Но от неожиданности он выронил фонарик, который разбился. Бандиты забрали у группы ящик тушенки (+3 месяца).
-
-Последствия:
-- Потерян предмет: фонарик<br>
-- Бункер: -3 месяца еды<br>
-
-**ПРИМЕР 7 - Обычный вариант (без особых реакций):**
-Алексей заметил под камнями прямо у входа в бункер край рюкзака, наполовину присыпанный землей. Раскапывая его, Алексей порезал руку об острый камень, получив резаную рану ладони (легкая). В рюкзаке оказались банки тушенки (+2 месяца к запасам еды).
-
-Последствия:
-- Алексей: резаная рана (легкая)<br>
-- Бункер: +2 месяца еды<br>
-
-Напиши историю, используя факты. Обязательно учитывай фобии и черты характера игроков, если они есть в фактах. Если фобия связана с событием - покажи ее влияние. Если черта характера яркая - пусть она проявится в реакции. Не добавляй новых фактов. Строго следуй формату болезней (с указанием тяжести в скобках) и еды (с указанием месяцев в скобках). **Все действия происходят только у входа в бункер. Игроки НИКУДА не отходят.**`;
-
-  // Пробуем разные модели
-  for (const model of STORY_MODELS) {
-    try {
-      const story = await callModelWithTimeout(model, prompt, 15000);
-      return story;
-    } catch (error) {
-      console.log(`❌ Модель ${model} не ответила:`, error.message);
-    }
-  }
-
-  // Запасной вариант
-  return generateFallbackStory(facts, template);
+  return prompt;
 }
-// =======================================================
 
-// ============ ЗАПАСНОЙ ВАРИАНТ БЕЗ НЕЙРОСЕТИ ============
-function generateFallbackStory(facts, template) {
-  switch (template.id) {
-    case 'attack':
-      return `${facts.threat} напал на ${facts.target.name} в ${facts.location}. ${facts.target.name} отбился, но получил ${facts.injury}.`;
-    case 'find':
-      return `${facts.hero.name} нашел ${facts.item} в ${facts.location}.`;
-    case 'find_with_risk':
-      return `${facts.hero.name} и ${facts.helper.name} нашли ${facts.item1} и ${facts.item2} в ${facts.location}. ${facts.injured.name} получил ${facts.injury}.`;
-    case 'break':
-      return `У ${facts.hero.name} сломался ${facts.item} во время ${facts.activity}.`;
-    case 'accident':
-      return `${facts.hero.name} пострадал в ${facts.location}, получив ${facts.injury}.`;
-    case 'theft':
-      return `${facts.threat} украл у ${facts.target.name} ${facts.item}.`;
-    case 'discover_cache':
-      return `${facts.hero.name} нашел тайник в ${facts.location} с ${facts.item1} и ${facts.item2}.`;
-    case 'hunting':
-      return `${facts.hero.name} охотился на ${facts.animal} и добыл ${facts.item}, но получил ${facts.injury}.`;
-    default:
-      return `Случилось событие.`;
-  }
-}
-// =======================================================
-
-// ============ ОСНОВНАЯ ФУНКЦИЯ ГЕНЕРАЦИИ ============
-async function generateEvent(game) {
-  // Генерируем факты
-  const result = generateEventFacts(game);
-  if (!result) {
-    throw new Error('Не удалось сгенерировать событие');
-  }
-
-  const { template, facts } = result;
-
-  // Получаем последствия
-  const consequences = template.possibleConsequences(facts);
-
-  // Применяем последствия к игре
-  const consequenceLines = applyConsequencesFromFacts(game, facts, consequences);
-
-  // Генерируем историю через нейросеть
-  let storyText;
-  try {
-    storyText = await generateStoryFromFacts(facts, template, game);
-  } catch (error) {
-    console.log('❌ Ошибка генерации истории, использую запасной вариант');
-    storyText = generateFallbackStory(facts, template);
-  }
-
-  // Создаем событие
-  const event = {
-    id: uuidv4(),
-    text: storyText,
-    facts: facts, // Сохраняем факты для проверки повторов
-    consequences: consequenceLines.join('\n'),
-    timestamp: Date.now()
-  };
-
-  return event;
-}
-// =======================================================
-
-// ============ API МАРШРУТ ДЛЯ ГЕНЕРАЦИИ ============
-app.post('/api/generate-event', async (req, res) => {
-  try {
-    const { gameId } = req.body;
-    const game = games.get(gameId);
-    if (!game) {
-      return res.status(404).json({ error: 'Игра не найдена' });
-    }
-
-    console.log(`🎮 Генерация события для игры ${gameId}`);
-
-    // Генерируем событие
-    const event = await generateEvent(game);
-
-    if (!game.events) game.events = [];
-    game.events.unshift(event);
-    if (game.events.length > 20) game.events = game.events.slice(0, 20);
-
-    // Сохраняем изменения
-    games.set(gameId, game);
-    saveData();
-
-    // Отправляем обновление всем игрокам
-    emitGameUpdateFixed(gameId);
-
-    // Отправляем событие
-    io.to(gameId).emit('newEvent', event);
-
-    console.log(`✅ Событие успешно добавлено в игру ${gameId}`);
-    res.json({ success: true, event });
-
-  } catch (error) {
-    console.error('❌ Ошибка генерации события:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ API МАРШРУТ ДЛЯ ГЕНЕРАЦИИ ФИНАЛА ============
-function buildFinalPrompt(game) {
-    // Собираем информацию о катастрофе и бункере
-    let prompt = `Сгенерируй финал игры "Бункер" в виде хронологии выживания по годам.\n\n`;
-    prompt += `КАТАСТРОФА:\n${game.disaster}\n\n`;
-    prompt += `БУНКЕР:\nСрок: ${game.bunker.duration_years} лет, Еда: на ${game.bunker.food_years} лет\n${game.bunker.extra}\n\n`;
-
-    // Информация об игроках (только раскрытые характеристики)
-    prompt += `ИГРОКИ (только раскрытая информация):\n`;
-    game.players.forEach(player => {
-        if (player.status === 'kicked' || player.status === 'dead') return;
-        const revealed = [];
-        Object.entries(player.characteristics).forEach(([key, char]) => {
-            if (char.revealed) {
-                revealed.push(`${key}: ${char.value}`);
-            }
-        });
-        if (revealed.length > 0) {
-            prompt += `\n${player.name}:\n`;
-            revealed.forEach(line => prompt += `  ${line}\n`);
-        }
-    });
-
-    prompt += `\nТРЕБОВАНИЯ К ФИНАЛУ:\n`;
-    prompt += `- Хронология по годам: год 1, год 2, ... до последнего года (согласно сроку бункера) или до момента гибели группы.\n`;
-    prompt += `- Стиль: захватывающий, реалистичный, с элементами чёрного юмора, пикантными подробностями, упоминаниями интимных отношений между игроками (если это логично вытекает из их характеристик).\n`;
-    prompt += `- Длина: от 20 до 40 предложений.\n`;
-    prompt += `- Исход должен зависеть от раскрытых характеристик: если характеристики бесполезны или вредны, группа может погибнуть (голод, болезни, конфликты). Если есть полезные навыки – шансы на выживание выше.\n`;
-    prompt += `- Используй имена игроков как в списке выше.\n`;
-    prompt += `- Не добавляй информацию, которой нет в раскрытых характеристиках.\n`;
-    prompt += `- Финал должен быть законченным (либо все выжили, либо погибли, либо частично).\n`;
-
-    return prompt;
-}
 
 app.post('/api/generate-final', async (req, res) => {
   try {
@@ -3326,10 +3351,11 @@ app.post('/api/generate-final', async (req, res) => {
 
     const prompt = buildFinalPrompt(game);
 
+    // Пробуем модели по порядку
     let finalText = null;
     for (const model of STORY_MODELS) {
       try {
-        finalText = await callModelWithTimeout(model, prompt, 30000);
+        finalText = await callModelWithTimeout(model, prompt, 30000); // 30 сек
         if (finalText) break;
       } catch (error) {
         console.log(`❌ Модель ${model} для финала не ответила:`, error.message);
@@ -3337,11 +3363,9 @@ app.post('/api/generate-final', async (req, res) => {
     }
 
     if (!finalText) {
+      // Запасной вариант
       finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
     }
-
-    // Отправляем финал всем игрокам через сокет
-    io.to(gameId).emit('finalGenerated', { final: finalText });
 
     res.json({ success: true, final: finalText });
 
@@ -3351,16 +3375,28 @@ app.post('/api/generate-final', async (req, res) => {
   }
 });
 
-app.get('/api/events/:gameId', (req, res) => {
-  const { gameId } = req.params;
-  const game = games.get(gameId);
 
-  if (!game) {
-    return res.status(404).json({ error: 'Игра не найдена' });
-  }
 
-  res.json({ events: game.events || [] });
-});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3568,11 +3604,6 @@ io.on('connection', (socket) => {
     // Инициализируем ресурсы бункера из инвентарей игроков
     initializeBunkerResources(game);
 
-  // === НОВЫЙ КОД: гарантируем наличие здорового игрока ===
-  ensureAtLeastOneHealthy(game);
-  // ======================================================
-
-
     games.set(gameId, game);
     lobby.status = 'game_started';
     lobby.gameId = gameId;
@@ -3600,9 +3631,68 @@ io.on('connection', (socket) => {
       });
     });
 
+    // Раздача уникальных скрытых возможностей
+    const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
+    game.players.forEach((player, index) => {
+      if (index < shuffledAbilities.length) {
+        player.secretAbility = {
+          value: shuffledAbilities[index],
+          activated: false
+        };
+      } else {
+        player.secretAbility = { value: "Нет способности", activated: false };
+      }
+    });
+
     saveData();
     console.log('Игра создана:', gameId);
   });
+
+
+socket.on('activateAbility', ({ gameId, playerId }) => {
+    const game = games.get(gameId);
+    if (!game) {
+        socket.emit('error', 'Игра не найдена');
+        return;
+    }
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator) {
+        socket.emit('error', 'Игрок не найден');
+        return;
+    }
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+        socket.emit('error', 'Целевой игрок не найден');
+        return;
+    }
+    if (!targetPlayer.secretAbility || targetPlayer.secretAbility.activated) {
+        socket.emit('error', 'Способность уже активирована или отсутствует');
+        return;
+    }
+    // Может активировать только владелец или создатель
+    if (initiator.id !== targetPlayer.id && initiator.id !== game.creator) {
+        socket.emit('error', 'Только владелец или создатель может активировать способность');
+        return;
+    }
+    targetPlayer.secretAbility.activated = true;
+    
+    // Добавляем событие в ленту
+    if (!game.events) game.events = [];
+    const eventText = `🃏 ${targetPlayer.name} активировал скрытую возможность: ${targetPlayer.secretAbility.value}`;
+    const event = {
+        id: uuidv4(),
+        text: eventText,
+        timestamp: Date.now()
+    };
+    game.events.unshift(event);
+    if (game.events.length > 20) game.events = game.events.slice(0, 20);
+    
+    games.set(gameId, game);
+    saveData();
+    io.to(gameId).emit('newEvent', event);
+    emitGameUpdateFixed(gameId);
+    console.log(`Способность активирована игроком ${targetPlayer.name} в игре ${gameId}`);
+});
 
   socket.on('getGameData', ({ gameId }) => {
     const game = games.get(gameId);
@@ -3822,99 +3912,76 @@ io.on('connection', (socket) => {
   });
 
   // ============ ОБРАБОТЧИКИ ДЛЯ ЗДОРОВЬЯ ============
-socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
-  console.log('changeHealth called:', { gameId, playerId, action, diseaseName, severity });
+  socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
+    console.log('changeHealth called:', { gameId, playerId, action, diseaseName, severity });
 
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
-
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может изменять здоровье');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  // Определяем пол игрока
-  const genderStr = targetPlayer.characteristics.gender.value;
-  const playerGender = genderStr.startsWith('Мужской') ? 'male' : (genderStr.startsWith('Женский') ? 'female' : 'any');
-
-  let newHealthValue;
-
-  switch (action) {
-    case 'random':
-      newHealthValue = getRandomHealth(playerGender);
-      break;
-
-    case 'select':
-      if (!diseaseName) {
-        socket.emit('error', 'Не выбрана болезнь');
-        return;
-      }
-      if (diseaseName === 'Здоров') {
-        newHealthValue = 'Здоров';
-      } else {
-        // Проверим, доступна ли эта болезнь для пола игрока
-        const allHealth = GAME_DATA.characteristics.health;
-        const diseaseObj = allHealth.find(h => h.name === diseaseName);
-        if (!diseaseObj) {
-          socket.emit('error', 'Болезнь не найдена в списке');
-          return;
-        }
-        if (diseaseObj.gender && diseaseObj.gender !== 'any' && diseaseObj.gender !== playerGender) {
-          socket.emit('error', `Эта болезнь не может быть у игрока данного пола`);
-          return;
-        }
-        const sev = severity || getRandomSeverity();
-        newHealthValue = `${diseaseName} (${sev})`;
-      }
-      break;
-
-    case 'add':
-      if (!diseaseName) {
-        socket.emit('error', 'Не выбрана болезнь');
-        return;
-      }
-      // При добавлении тоже нужно проверить пол
-      const allHealth = GAME_DATA.characteristics.health;
-      const diseaseObj = allHealth.find(h => h.name === diseaseName);
-      if (!diseaseObj) {
-        socket.emit('error', 'Болезнь не найдена в списке');
-        return;
-      }
-      if (diseaseObj.gender && diseaseObj.gender !== 'any' && diseaseObj.gender !== playerGender) {
-        socket.emit('error', `Эта болезнь не может быть у игрока данного пола`);
-        return;
-      }
-
-      const currentDiseases = parseHealthValue(targetPlayer.characteristics.health.value);
-      currentDiseases.push({
-        name: diseaseName,
-        severity: severity || getRandomSeverity()
-      });
-      newHealthValue = formatHealthValue(currentDiseases);
-      break;
-
-    default:
-      socket.emit('error', 'Неизвестное действие');
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
       return;
-  }
+    }
 
-  targetPlayer.characteristics.health.value = newHealthValue;
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может изменять здоровье');
+      return;
+    }
 
-  console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
-});
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    let newHealthValue;
+
+    switch (action) {
+      case 'random':
+        newHealthValue = getRandomHealth();
+        break;
+
+      case 'select':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+        if (diseaseName === 'Здоров') {
+          newHealthValue = 'Здоров';
+        } else {
+          const sev = severity || getRandomSeverity();
+          newHealthValue = `${diseaseName} (${sev})`;
+        }
+        break;
+
+      case 'add':
+        if (!diseaseName) {
+          socket.emit('error', 'Не выбрана болезнь');
+          return;
+        }
+
+        const currentDiseases = parseHealthValue(targetPlayer.characteristics.health.value);
+
+        currentDiseases.push({
+          name: diseaseName,
+          severity: severity || getRandomSeverity()
+        });
+
+        newHealthValue = formatHealthValue(currentDiseases);
+        break;
+
+      default:
+        socket.emit('error', 'Неизвестное действие');
+        return;
+    }
+
+    targetPlayer.characteristics.health.value = newHealthValue;
+
+    games.set(gameId, game);
+    emitGameUpdateFixed(gameId);
+    saveData();
+
+    console.log(`Создатель изменил здоровье игрока ${targetPlayer.name} на ${newHealthValue}`);
+  });
 
   socket.on('removeHealth', ({ gameId, playerId, index }) => {
     console.log('removeHealth called:', { gameId, playerId, index });
@@ -3959,118 +4026,284 @@ socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) 
 
 
 
-// ============ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
-socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
-  console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
 
-  const game = games.get(gameId);
-  if (!game) {
-    socket.emit('error', 'Игра не найдена');
-    return;
-  }
+  socket.on('attemptHeal', ({ gameId, playerId, experience }) => {
+    try {
+      console.log('attemptHeal called:', { gameId, playerId, experience });
 
-  const initiator = game.players.find(p => p.socketId === socket.id);
-  if (!initiator || initiator.id !== game.creator) {
-    socket.emit('error', 'Только создатель может изменять характеристики');
-    return;
-  }
-
-  const targetPlayer = game.players.find(p => p.id === playerId);
-  if (!targetPlayer) {
-    socket.emit('error', 'Игрок не найден');
-    return;
-  }
-
-  // Получаем возраст игрока из строки пола
-  const age = extractAgeFromGender(targetPlayer.characteristics.gender.value);
-
-  const currentValue = targetPlayer.characteristics[characteristic].value;
-  const parsed = parseCharacteristicValue(characteristic, currentValue);
-  let newValue;
-
-  switch (action) {
-    case 'random':
-      newValue = getRandomValue(characteristic, currentValue, age);
-      break;
-
-    case 'select':
-      if (!value) {
-        socket.emit('error', 'Не выбрано значение');
+      const game = games.get(gameId);
+      if (!game) {
+        socket.emit('error', 'Игра не найдена');
         return;
       }
-      if (characteristic === 'profession') {
-        const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
-        if (prof) {
-          const experience = generateExperienceByAge(age);
-          newValue = `${prof.name} (стаж ${experience} лет)`;
+
+      const initiator = game.players.find(p => p.socketId === socket.id);
+      if (!initiator || initiator.id !== game.creator) {
+        socket.emit('error', 'Только создатель может использовать лечение');
+        return;
+      }
+
+      const targetPlayer = game.players.find(p => p.id === playerId);
+      if (!targetPlayer) {
+        socket.emit('error', 'Игрок не найден');
+        return;
+      }
+
+      if (!targetPlayer.characteristics.health.revealed) {
+        socket.emit('error', 'Здоровье игрока не раскрыто');
+        return;
+      }
+
+      const diseases = parseHealthValue(targetPlayer.characteristics.health.value);
+      if (diseases.length === 0 || targetPlayer.characteristics.health.value === 'Здоров') {
+        socket.emit('error', 'У игрока нет болезней для лечения');
+        return;
+      }
+
+      const exp = parseInt(experience);
+      if (isNaN(exp) || exp < 1 || exp > 30) {
+        socket.emit('error', 'Некорректный стаж (должен быть от 1 до 30)');
+        return;
+      }
+
+      // Определяем исходы в зависимости от стажа (таблица вероятностей)
+      let outcomes = [];
+      if (exp >= 25 && exp <= 30) {
+        outcomes = [
+          { name: 'full', chance: 50, label: 'Полное излечение', delta: -999 },
+          { name: 'down2', chance: 30, label: 'Улучшение на 2 степени', delta: -2 },
+          { name: 'down1', chance: 20, label: 'Улучшение на 1 степень', delta: -1 }
+        ];
+      } else if (exp >= 20 && exp <= 24) {
+        outcomes = [
+          { name: 'full', chance: 30, label: 'Полное излечение', delta: -999 },
+          { name: 'down2', chance: 50, label: 'Улучшение на 2 степени', delta: -2 },
+          { name: 'down1', chance: 20, label: 'Улучшение на 1 степень', delta: -1 }
+        ];
+      } else if (exp >= 15 && exp <= 19) {
+        outcomes = [
+          { name: 'full', chance: 10, label: 'Полное излечение', delta: -999 },
+          { name: 'down2', chance: 30, label: 'Улучшение на 2 степени', delta: -2 },
+          { name: 'down1', chance: 50, label: 'Улучшение на 1 степень', delta: -1 },
+          { name: 'up1', chance: 10, label: 'Ухудшение на 1 степень', delta: 1 }
+        ];
+      } else if (exp >= 10 && exp <= 14) {
+        outcomes = [
+          { name: 'full', chance: 1, label: 'Полное излечение', delta: -999 },
+          { name: 'down2', chance: 15, label: 'Улучшение на 2 степени', delta: -2 },
+          { name: 'down1', chance: 69, label: 'Улучшение на 1 степень', delta: -1 },
+          { name: 'up1', chance: 15, label: 'Ухудшение на 1 степень', delta: 1 }
+        ];
+      } else if (exp >= 5 && exp <= 9) {
+        outcomes = [
+          { name: 'full', chance: 0, label: 'Полное излечение', delta: -999 },
+          { name: 'down2', chance: 5, label: 'Улучшение на 2 степени', delta: -2 },
+          { name: 'down1', chance: 80, label: 'Улучшение на 1 степень', delta: -1 },
+          { name: 'up1', chance: 15, label: 'Ухудшение на 1 степень', delta: 1 }
+        ];
+      } else { // 1-4
+        outcomes = [
+          { name: 'full', chance: 0, label: 'Полное излечение', delta: -999 },
+          { name: 'down2', chance: 0, label: 'Улучшение на 2 степени', delta: -2 },
+          { name: 'down1', chance: 70, label: 'Улучшение на 1 степень', delta: -1 },
+          { name: 'up1', chance: 30, label: 'Ухудшение на 1 степень', delta: 1 }
+        ];
+      }
+
+
+      const totalChance = outcomes.reduce((acc, o) => acc + o.chance, 0);
+      const roll = Math.random() * totalChance;
+      let cumulative = 0;
+      let selectedOutcome = outcomes[outcomes.length - 1];
+      for (const outcome of outcomes) {
+        cumulative += outcome.chance;
+        if (roll < cumulative) {
+          selectedOutcome = outcome;
+          break;
+        }
+      }
+
+      let resultMessage = '';
+      if (selectedOutcome.name === 'full') {
+        resultMessage = `✅ Полное излечение! (Стаж ${exp} лет)`;
+      } else if (selectedOutcome.name === 'down2') {
+        resultMessage = `✅ Улучшение на 2 степени! (Стаж ${exp} лет)`;
+      } else if (selectedOutcome.name === 'down1') {
+        resultMessage = `✅ Улучшение на 1 степень! (Стаж ${exp} лет)`;
+      } else if (selectedOutcome.name === 'up1') {
+        resultMessage = `❌ Ухудшение на 1 степень! (Стаж ${exp} лет)`;
+      }
+
+      // Отправляем результат всем игрокам (без изменения данных)
+      io.to(gameId).emit('healAttemptResult', {
+        playerName: targetPlayer.name,
+        initiatorName: initiator.name,
+        message: resultMessage,
+        success: selectedOutcome.name !== 'up1', // для визуала (успех/неудача)
+        died: false, // смерть теперь не автоматическая
+        outcome: selectedOutcome.name,
+        experience: exp,
+        delta: selectedOutcome.delta // добавим, чтобы креатор знал, на сколько менять
+      });
+
+      console.log(`Лечение (только результат): ${initiator.name} -> ${targetPlayer.name}: ${resultMessage}`);
+
+    } catch (error) {
+      console.error('❌ Ошибка в attemptHeal:', error);
+      socket.emit('error', 'Внутренняя ошибка сервера при лечении');
+    }
+  });
+
+
+
+  // ============ ОБРАБОТЧИКИ ДЛЯ ХАРАКТЕРИСТИК ============
+  socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, value, index }) => {
+    console.log('changeCharacteristic called:', { gameId, playerId, characteristic, action, value, index });
+
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может изменять характеристики');
+      return;
+    }
+
+    const targetPlayer = game.players.find(p => p.id === playerId);
+    if (!targetPlayer) {
+      socket.emit('error', 'Игрок не найден');
+      return;
+    }
+
+    const currentValue = targetPlayer.characteristics[characteristic].value;
+    const parsed = parseCharacteristicValue(characteristic, currentValue);
+    let newValue;
+
+    switch (action) {
+      case 'random':
+        // Передаём весь объект игрока для проверки уникальности
+        newValue = getRandomValue(characteristic, targetPlayer, true);
+        break;
+
+      case 'select':
+        if (!value) {
+          socket.emit('error', 'Не выбрано значение');
+          return;
+        }
+
+        // Проверяем уникальность выбранного значения
+        const usedValues = [];
+        Object.entries(targetPlayer.characteristics).forEach(([key, char]) => {
+          if (key !== characteristic && char.value && char.value !== '—') {
+            if (key === 'profession') {
+              const profMatch = char.value.match(/^([^(]+)/);
+              if (profMatch) usedValues.push(profMatch[1].trim());
+            } else if (key === 'health' && char.value !== 'Здоров') {
+              const healthMatch = char.value.match(/^([^(]+)/);
+              if (healthMatch) usedValues.push(healthMatch[1].trim());
+            } else {
+              usedValues.push(char.value);
+            }
+          }
+        });
+
+        if (usedValues.includes(value)) {
+          socket.emit('error', 'Это значение уже используется в другой характеристике');
+          return;
+        }
+
+        if (characteristic === 'profession') {
+          const prof = GAME_DATA.characteristics.professions.find(p => p.name === value);
+          if (prof) {
+            const experience = Math.floor(Math.random() * 20) + 1;
+            newValue = `${prof.name} (стаж ${experience} лет)`;
+          } else {
+            newValue = value;
+          }
+        } else if (characteristic === 'health') {
+          if (value === 'Здоров') {
+            newValue = 'Здоров';
+          } else {
+            const severity = getRandomSeverity();
+            newValue = `${value} (${severity})`;
+          }
         } else {
           newValue = value;
         }
-      } else {
-        newValue = value;
-      }
-      break;
+        break;
 
-    case 'add':
-      if (!value) {
-        socket.emit('error', 'Не выбрано значение');
-        return;
-      }
-      if (characteristic === 'profession' || characteristic === 'gender') {
-        socket.emit('error', 'Нельзя добавлять к этой характеристике');
-        return;
-      }
-      newValue = formatCharacteristicValue(characteristic, parsed.main, [...parsed.items, value]);
-      break;
-
-    case 'remove':
-      if (index === undefined || index < 0) {
-        socket.emit('error', 'Не указан элемент для удаления');
-        return;
-      }
-
-      if (characteristic === 'profession' || characteristic === 'gender') {
-        socket.emit('error', 'Нельзя удалять части этой характеристики');
-        return;
-      }
-
-      if (index === 0) {
-        if (parsed.items.length > 0) {
-          newValue = formatCharacteristicValue(characteristic, parsed.items[0], parsed.items.slice(1));
-        } else {
-          newValue = '—';
-        }
-      } else {
-        const itemIndex = index - 1;
-        if (itemIndex >= 0 && itemIndex < parsed.items.length) {
-          const newItems = [...parsed.items];
-          newItems.splice(itemIndex, 1);
-          newValue = formatCharacteristicValue(characteristic, parsed.main, newItems);
-        } else {
-          socket.emit('error', 'Элемент не найден');
+      case 'add':
+        if (!value) {
+          socket.emit('error', 'Не выбрано значение');
           return;
         }
-      }
-      break;
 
-    default:
-      socket.emit('error', 'Неизвестное действие');
-      return;
-  }
+        // При добавлении проверяем на совпадение с уже имеющимися
+        const allCurrentValues = [parsed.main, ...parsed.items].filter(v => v && v !== '—');
+        if (allCurrentValues.includes(value)) {
+          socket.emit('error', 'Это значение уже есть в характеристике');
+          return;
+        }
 
-  targetPlayer.characteristics[characteristic].value = newValue;
+        if (characteristic === 'profession' || characteristic === 'gender' || characteristic === 'health') {
+          socket.emit('error', 'Нельзя добавлять к этой характеристике');
+          return;
+        }
+        newValue = formatCharacteristicValue(characteristic, parsed.main, [...parsed.items, value]);
+        break;
 
-  // Если изменили инвентарь, обновляем ресурсы бункера
-  if (characteristic === 'inventory' && game.bunkerResources) {
-    initializeBunkerResources(game);
-  }
+      case 'remove':
+        if (index === undefined || index < 0) {
+          socket.emit('error', 'Не указан элемент для удаления');
+          return;
+        }
 
-  games.set(gameId, game);
-  emitGameUpdateFixed(gameId);
-  saveData();
+        if (characteristic === 'profession' || characteristic === 'gender' || characteristic === 'health') {
+          socket.emit('error', 'Нельзя удалять части этой характеристики');
+          return;
+        }
 
-  console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name}`);
-});
+        if (index === 0) {
+          if (parsed.items.length > 0) {
+            newValue = formatCharacteristicValue(characteristic, parsed.items[0], parsed.items.slice(1));
+          } else {
+            newValue = '—';
+          }
+        } else {
+          const itemIndex = index - 1;
+          if (itemIndex >= 0 && itemIndex < parsed.items.length) {
+            const newItems = [...parsed.items];
+            newItems.splice(itemIndex, 1);
+            newValue = formatCharacteristicValue(characteristic, parsed.main, newItems);
+          } else {
+            socket.emit('error', 'Элемент не найден');
+            return;
+          }
+        }
+        break;
+
+      default:
+        socket.emit('error', 'Неизвестное действие');
+        return;
+    }
+
+    targetPlayer.characteristics[characteristic].value = newValue;
+
+    // Если изменили инвентарь, обновляем ресурсы бункера
+    if (characteristic === 'inventory' && game.bunkerResources) {
+      initializeBunkerResources(game);
+    }
+
+    games.set(gameId, game);
+    emitGameUpdateFixed(gameId);
+    saveData();
+
+    console.log(`Создатель изменил характеристику ${characteristic} игрока ${targetPlayer.name}`);
+  });
+
 
 
 
@@ -4233,146 +4466,6 @@ socket.on('changeCharacteristic', ({ gameId, playerId, characteristic, action, v
       activePlayers.delete(socket.id);
     }
   });
-
-
-// ============ ОБРАБОТЧИК ДЛЯ ЛЕЧЕНИЯ ============
-socket.on('attemptHeal', ({ gameId, playerId, experience }) => {
-    try {
-        console.log('attemptHeal called:', { gameId, playerId, experience });
-
-        const game = games.get(gameId);
-        if (!game) {
-            socket.emit('error', 'Игра не найдена');
-            return;
-        }
-
-        const initiator = game.players.find(p => p.socketId === socket.id);
-        if (!initiator || initiator.id !== game.creator) {
-            socket.emit('error', 'Только создатель может использовать лечение');
-            return;
-        }
-
-        const targetPlayer = game.players.find(p => p.id === playerId);
-        if (!targetPlayer) {
-            socket.emit('error', 'Игрок не найден');
-            return;
-        }
-
-        if (!targetPlayer.characteristics.health.revealed) {
-            socket.emit('error', 'Здоровье игрока не раскрыто');
-            return;
-        }
-
-        const diseases = parseHealthValue(targetPlayer.characteristics.health.value);
-        if (diseases.length === 0 || targetPlayer.characteristics.health.value === 'Здоров') {
-            socket.emit('error', 'У игрока нет болезней для лечения');
-            return;
-        }
-
-        const exp = parseInt(experience);
-        if (isNaN(exp) || exp < 1 || exp > 30) {
-            socket.emit('error', 'Некорректный стаж (должен быть от 1 до 30)');
-            return;
-        }
-
-        // Таблица вероятностей (как вы задавали ранее)
-        let outcomes = [];
-        if (exp >= 25 && exp <= 30) {
-            outcomes = [
-                { name: 'full', chance: 50, label: 'Полное излечение', delta: -999 },
-                { name: 'down2', chance: 30, label: 'Улучшение на 2 степени', delta: -2 },
-                { name: 'down1', chance: 20, label: 'Улучшение на 1 степень', delta: -1 }
-            ];
-        } else if (exp >= 20 && exp <= 24) {
-            outcomes = [
-                { name: 'full', chance: 30, label: 'Полное излечение', delta: -999 },
-                { name: 'down2', chance: 50, label: 'Улучшение на 2 степени', delta: -2 },
-                { name: 'down1', chance: 20, label: 'Улучшение на 1 степень', delta: -1 }
-            ];
-        } else if (exp >= 15 && exp <= 19) {
-            outcomes = [
-                { name: 'full', chance: 10, label: 'Полное излечение', delta: -999 },
-                { name: 'down2', chance: 30, label: 'Улучшение на 2 степени', delta: -2 },
-                { name: 'down1', chance: 50, label: 'Улучшение на 1 степень', delta: -1 },
-                { name: 'up1', chance: 10, label: 'Ухудшение на 1 степень', delta: 1 }
-            ];
-        } else if (exp >= 10 && exp <= 14) {
-            outcomes = [
-                { name: 'full', chance: 1, label: 'Полное излечение', delta: -999 },
-                { name: 'down2', chance: 15, label: 'Улучшение на 2 степени', delta: -2 },
-                { name: 'down1', chance: 69, label: 'Улучшение на 1 степень', delta: -1 },
-                { name: 'up1', chance: 15, label: 'Ухудшение на 1 степень', delta: 1 }
-            ];
-        } else if (exp >= 5 && exp <= 9) {
-            outcomes = [
-                { name: 'full', chance: 0, label: 'Полное излечение', delta: -999 },
-                { name: 'down2', chance: 5, label: 'Улучшение на 2 степени', delta: -2 },
-                { name: 'down1', chance: 80, label: 'Улучшение на 1 степень', delta: -1 },
-                { name: 'up1', chance: 15, label: 'Ухудшение на 1 степень', delta: 1 }
-            ];
-        } else { // 1-4
-            outcomes = [
-                { name: 'full', chance: 0, label: 'Полное излечение', delta: -999 },
-                { name: 'down2', chance: 0, label: 'Улучшение на 2 степени', delta: -2 },
-                { name: 'down1', chance: 70, label: 'Улучшение на 1 степень', delta: -1 },
-                { name: 'up1', chance: 30, label: 'Ухудшение на 1 степень', delta: 1 }
-            ];
-        }
-
-        const totalChance = outcomes.reduce((acc, o) => acc + o.chance, 0);
-        const roll = Math.random() * totalChance;
-        let cumulative = 0;
-        let selectedOutcome = outcomes[outcomes.length - 1];
-        for (const outcome of outcomes) {
-            cumulative += outcome.chance;
-            if (roll < cumulative) {
-                selectedOutcome = outcome;
-                break;
-            }
-        }
-
-        const hasCritical = diseases.some(d => d.severity === 'критическая');
-        let resultMessage = '';
-
-        if (selectedOutcome.name === 'full') {
-            resultMessage = `✅ Полное излечение! (Стаж ${exp} лет)`;
-        } else if (selectedOutcome.name === 'down2') {
-            resultMessage = `✅ Улучшение на 2 степени! (Стаж ${exp} лет)`;
-        } else if (selectedOutcome.name === 'down1') {
-            resultMessage = `✅ Улучшение на 1 степень! (Стаж ${exp} лет)`;
-        } else if (selectedOutcome.name === 'up1') {
-            if (hasCritical) {
-                resultMessage = `❌ Ухудшение на 1 степень! Критическое состояние – возможна смерть! (Стаж ${exp} лет)`;
-            } else {
-                resultMessage = `❌ Ухудшение на 1 степень! (Стаж ${exp} лет)`;
-            }
-        }
-
-        // Сохраняем игру (данные не меняются)
-        games.set(gameId, game);
-        saveData();
-
-        // Отправляем результат всем игрокам
-        io.to(gameId).emit('healAttemptResult', {
-            playerName: targetPlayer.name,
-            initiatorName: initiator.name,
-            message: resultMessage,
-            success: selectedOutcome.name !== 'up1', // для визуала
-            died: false, // автоматическая смерть отключена
-            outcome: selectedOutcome.name,
-            experience: exp,
-            delta: selectedOutcome.delta // подсказка для ведущего
-        });
-
-        emitGameUpdateFixed(gameId);
-        console.log(`Лечение (только результат): ${initiator.name} -> ${targetPlayer.name}: ${resultMessage}`);
-
-    } catch (error) {
-        console.error('❌ Ошибка в attemptHeal:', error);
-        socket.emit('error', 'Внутренняя ошибка сервера при лечении');
-    }
-});
-  
 });
 
 const PORT = process.env.PORT || 3000;
