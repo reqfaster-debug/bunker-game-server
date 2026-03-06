@@ -1232,6 +1232,7 @@ const GAME_DATA = {
     health: [
       // Общие (для терапевта)
       { name: 'Здоров' },
+      { name: 'Здоров' },
       { name: 'Анемия' },
       { name: 'Авитаминоз' },
 
@@ -3342,20 +3343,20 @@ app.post('/api/generate-final', async (req, res) => {
     console.log('[FINAL] Generating final for game', gameId);
     console.log('[FINAL] Prompt length:', prompt.length);
     let finalText = null;
-for (const model of STORY_MODELS) {
-  try {
-    console.log(`[FINAL] Trying model: ${model}`);
-    finalText = await callModelWithTimeout(model, prompt, 20000);
-    if (finalText && finalText.trim()) {
-      console.log(`[FINAL] Model ${model} returned: ${finalText.length} chars`);
-      break;
+    for (const model of STORY_MODELS) {
+      try {
+        console.log(`[FINAL] Trying model: ${model}`);
+        finalText = await callModelWithTimeout(model, prompt, 20000);
+        if (finalText && finalText.trim()) {
+          console.log(`[FINAL] Model ${model} returned: ${finalText.length} chars`);
+          break;
+        }
+      } catch (error) {
+        console.error(`[FINAL] Model ${model} error:`, error.message);
+        // Небольшая задержка перед следующей моделью
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
-  } catch (error) {
-    console.error(`[FINAL] Model ${model} error:`, error.message);
-    // Небольшая задержка перед следующей моделью
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-}
     if (!finalText || !finalText.trim()) {
       finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
       console.log('[FINAL] Using fallback text');
@@ -3952,6 +3953,88 @@ io.on('connection', (socket) => {
     console.log(`В игре ${gameId} права создателя переданы от ${initiator.name} к ${newCreator.name}`);
   });
 
+
+
+socket.on('rerollAllHiddenCharacteristics', ({ gameId }) => {
+  try {
+    console.log(`[rerollAll] Запрос от создателя на перегенерацию всех скрытых характеристик для игры ${gameId}`);
+
+    const game = games.get(gameId);
+    if (!game) {
+      socket.emit('error', 'Игра не найдена');
+      return;
+    }
+
+    const initiator = game.players.find(p => p.socketId === socket.id);
+    if (!initiator || initiator.id !== game.creator) {
+      socket.emit('error', 'Только создатель может перегенерировать характеристики');
+      return;
+    }
+
+    // Перебираем всех игроков
+    game.players.forEach(player => {
+      // Перебираем все характеристики
+      Object.keys(player.characteristics).forEach(charKey => {
+        const char = player.characteristics[charKey];
+        // Если характеристика не раскрыта, генерируем новое значение
+        if (!char.revealed) {
+          const newValue = getRandomValue(charKey, player, true);
+          if (newValue) {
+            char.value = newValue;
+          }
+        }
+      });
+
+      // Обновляем сохранённые данные игрока
+      const savedPlayer = playersDataMap.get(player.id);
+      if (savedPlayer) {
+        Object.keys(savedPlayer.characteristics).forEach(charKey => {
+          if (!savedPlayer.characteristics[charKey].revealed) {
+            savedPlayer.characteristics[charKey].value = player.characteristics[charKey].value;
+          }
+        });
+      }
+    });
+
+    // Пересчитываем ресурсы бункера (инвентари могли измениться)
+    if (game.bunkerResources) {
+      initializeBunkerResources(game);
+    }
+
+    // Добавляем событие в ленту
+    if (!game.events) game.events = [];
+    const event = {
+      id: uuidv4(),
+      text: `🔄 Создатель перемешал все нераскрытые характеристики игроков`,
+      timestamp: Date.now()
+    };
+    game.events.unshift(event);
+    io.to(gameId).emit('newEvent', event);
+
+    // Сохраняем игру
+    games.set(gameId, game);
+    saveData();
+
+    // Отправляем обновление всем
+    emitGameUpdateFixed(gameId);
+
+    console.log(`[rerollAll] Характеристики успешно перегенерированы для игры ${gameId}`);
+  } catch (error) {
+    console.error('[rerollAll] Ошибка:', error);
+    socket.emit('error', 'Внутренняя ошибка сервера');
+  }
+});
+
+
+document.getElementById('rerollAllBtn').addEventListener('click', () => {
+    if (!socket || !gameData) {
+        alert('Игра не активна');
+        return;
+    }
+    if (confirm('Вы уверены, что хотите случайным образом изменить все нераскрытые характеристики всех игроков? Это действие нельзя отменить.')) {
+        socket.emit('rerollAllHiddenCharacteristics', { gameId: gameData.gameId });
+    }
+});
   // ============ ОБРАБОТЧИКИ ДЛЯ ЗДОРОВЬЯ ============
   socket.on('changeHealth', ({ gameId, playerId, action, diseaseName, severity }) => {
     console.log('changeHealth called:', { gameId, playerId, action, diseaseName, severity });
