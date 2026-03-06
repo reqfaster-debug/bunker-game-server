@@ -3604,6 +3604,20 @@ io.on('connection', (socket) => {
     // Инициализируем ресурсы бункера из инвентарей игроков
     initializeBunkerResources(game);
 
+// Раздача уникальных скрытых возможностей
+const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
+game.players.forEach((player, index) => {
+    if (index < shuffledAbilities.length) {
+        player.secretAbility = {
+            value: shuffledAbilities[index],
+            activated: false
+        };
+    } else {
+        player.secretAbility = { value: "Нет способности", activated: false };
+    }
+});
+
+
     games.set(gameId, game);
     lobby.status = 'game_started';
     lobby.gameId = gameId;
@@ -3630,20 +3644,8 @@ io.on('connection', (socket) => {
         bunkerResources: game.bunkerResources
       });
     });
-
-// Раздача уникальных скрытых возможностей
-const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
-game.players.forEach((player, index) => {
-    if (index < shuffledAbilities.length) {
-        player.secretAbility = {
-            value: shuffledAbilities[index],
-            activated: false
-        };
-    } else {
-        player.secretAbility = { value: "Нет способности", activated: false };
-    }
-});
-
+  });
+  
 
 
   socket.on('getGameData', ({ gameId }) => {
