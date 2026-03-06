@@ -3957,7 +3957,7 @@ io.on('connection', (socket) => {
 
 socket.on('rerollAllCharacteristics', ({ gameId }) => {
   try {
-    console.log(`[rerollAll] Запрос от создателя на ПЕРЕГЕНЕРАЦИЮ ВСЕХ характеристик для игры ${gameId}`);
+    console.log(`[rerollAll] Запрос от создателя на ПЕРЕГЕНЕРАЦИЮ ВСЕХ характеристик (раскрытые остаются раскрытыми) для игры ${gameId}`);
 
     const game = games.get(gameId);
     if (!game) {
@@ -3973,7 +3973,13 @@ socket.on('rerollAllCharacteristics', ({ gameId }) => {
 
     // Перебираем всех игроков
     game.players.forEach(player => {
-      // Перебираем все характеристики
+      // Сохраняем текущие флаги раскрытия
+      const oldRevealed = {};
+      Object.keys(player.characteristics).forEach(key => {
+        oldRevealed[key] = player.characteristics[key].revealed;
+      });
+
+      // Перебираем все характеристики и генерируем новые значения
       Object.keys(player.characteristics).forEach(charKey => {
         const char = player.characteristics[charKey];
         // Генерируем новое значение (учитывая уникальность среди текущих характеристик этого игрока)
@@ -3981,8 +3987,8 @@ socket.on('rerollAllCharacteristics', ({ gameId }) => {
         if (newValue) {
           char.value = newValue;
         }
-        // Сбрасываем флаг раскрытия
-        char.revealed = false;
+        // Восстанавливаем флаг раскрытия (оставляем как было)
+        char.revealed = oldRevealed[charKey];
       });
 
       // Обновляем сохранённые данные игрока
@@ -3990,7 +3996,7 @@ socket.on('rerollAllCharacteristics', ({ gameId }) => {
       if (savedPlayer) {
         Object.keys(savedPlayer.characteristics).forEach(charKey => {
           savedPlayer.characteristics[charKey].value = player.characteristics[charKey].value;
-          savedPlayer.characteristics[charKey].revealed = false;
+          savedPlayer.characteristics[charKey].revealed = player.characteristics[charKey].revealed;
         });
       }
     });
@@ -4004,7 +4010,7 @@ socket.on('rerollAllCharacteristics', ({ gameId }) => {
     if (!game.events) game.events = [];
     const event = {
       id: uuidv4(),
-      text: `🔄 Создатель полностью перемешал ВСЕ характеристики игроков (все сброшены и скрыты)`,
+      text: `🔄 Создатель перемешал ВСЕ характеристики игроков (раскрытые обновлены, но остались видимыми)`,
       timestamp: Date.now()
     };
     game.events.unshift(event);
