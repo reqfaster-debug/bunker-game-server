@@ -1426,8 +1426,7 @@ const GAME_DATA = {
 
       // ========== ПРОЧИЕ ==========
       { name: 'Радиационное поражение', gender: 'any' },
-      { name: 'Лучевая болезнь', gender: 'any' },
-      { name: 'Интоксикация', gender: 'any' },
+      { name: 'Лучевая болезнь', gender: 'any' },   
       { name: 'Сепсис', gender: 'any' },
       { name: 'Гангрена', gender: 'any' },
       { name: 'Некроз', gender: 'any' },
@@ -3258,7 +3257,7 @@ io.on('connection', (socket) => {
       if (!game.events) game.events = [];
       const event = {
         id: uuidv4(),
-        text: `🔄 Создатель перемешал ВСЕ характеристики игроков (раскрытые обновлены, но остались видимыми)`,
+        text: `🔄 ВСЕ характеристики игроков изменены`,
         timestamp: Date.now()
       };
       game.events.unshift(event);
