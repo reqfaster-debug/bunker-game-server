@@ -2918,36 +2918,37 @@ io.on('connection', (socket) => {
       }
 
       // Раздача уникальных скрытых возможностей
-      if (Array.isArray(ABILITY_LIST) && ABILITY_LIST.length > 0) {
-        const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
-        game.players.forEach((player, index) => {
-          if (index < shuffledAbilities.length) {
-            const abilityValue = shuffledAbilities[index];
-            // Помечаем, нужно ли включать в финал (по умолчанию true, кроме "Нет способности")
-            const includeInFinal = abilityValue !== "Нет способности";
-            player.secretAbility = {
-              value: abilityValue,
-              activated: false,
-              includeInFinal: includeInFinal
-            };
-          } else {
-            player.secretAbility = {
-              value: "Нет способности",
-              activated: false,
-              includeInFinal: false
-            };
-          }
-        });
-      } else {
-        console.warn('[startGame] ABILITY_LIST пуст или не определён');
-        game.players.forEach(player => {
-          player.secretAbility = {
-            value: "Нет способности",
-            activated: false,
-            includeInFinal: false
-          };
-        });
-      }
+// Раздача уникальных скрытых возможностей
+if (Array.isArray(ABILITY_LIST) && ABILITY_LIST.length > 0) {
+  const shuffledAbilities = [...ABILITY_LIST].sort(() => Math.random() - 0.5);
+  game.players.forEach((player, index) => {
+    if (index < shuffledAbilities.length) {
+      const abilityObj = shuffledAbilities[index];
+      player.secretAbility = {
+        value: abilityObj.value,            // сохраняем только текст
+        activated: false,
+        includeInFinal: abilityObj.includeInFinal
+      };
+    } else {
+      player.secretAbility = { 
+        value: "Нет способности", 
+        activated: false,
+        includeInFinal: false 
+      };
+    }
+  });
+} else {
+  // fallback на случай пустого списка
+  game.players.forEach(player => {
+    player.secretAbility = { 
+      value: "Нет способности", 
+      activated: false,
+      includeInFinal: false 
+    };
+  });
+}
+
+
       games.set(gameId, game);
       lobby.status = 'game_started';
       lobby.gameId = gameId;
