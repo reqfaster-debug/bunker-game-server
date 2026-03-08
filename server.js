@@ -2687,13 +2687,21 @@ app.post('/api/generate-final', async (req, res) => {
     console.error('❌ Ошибка генерации финала:', error);
     res.status(500).json({ error: error.message });
   }
-  
-console.log(`[FINAL] Отправка finalGenerated в комнату ${gameId}`);
-const roomSize = io.sockets.adapter.rooms.get(gameId)?.size;
-console.log(`[FINAL] Размер комнаты ${gameId}: ${roomSize}`);
-io.to(gameId).emit('finalGenerated', { final: finalText });
-
-
+  try {
+    console.log(`[FINAL] Отправка finalGenerated в комнату ${gameId}`);
+    // Безопасное получение размера комнаты
+    let roomSize = 0;
+    try {
+        const room = io.sockets.adapter.rooms.get(gameId);
+        roomSize = room ? room.size : 0;
+    } catch (e) {
+        console.error('[FINAL] Ошибка при получении размера комнаты:', e);
+    }
+    console.log(`[FINAL] Размер комнаты ${gameId}: ${roomSize}`);
+    io.to(gameId).emit('finalGenerated', { final: finalText });
+} catch (err) {
+    console.error('[FINAL] Критическая ошибка при отправке финала:', err);
+}
 });
 
 // Socket.IO
