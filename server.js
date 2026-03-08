@@ -2681,34 +2681,25 @@ app.post('/api/generate-final', async (req, res) => {
       finalText = `Группа провела ${game.bunker.duration_years} лет в бункере. Несмотря на все усилия, ресурсы иссякли, и никто не выжил. Конец.`;
       console.log('[FINAL] Using fallback text');
     }
+
+    // Отправляем финал всем игрокам через сокет
+    try {
+      console.log(`[FINAL] Отправка finalGenerated в комнату ${gameId}`);
+      const room = io.sockets.adapter.rooms.get(gameId);
+      const roomSize = room ? room.size : 0;
+      console.log(`[FINAL] Размер комнаты ${gameId}: ${roomSize}`);
+      io.to(gameId).emit('finalGenerated', { final: finalText });
+    } catch (err) {
+      console.error('[FINAL] Ошибка при отправке финала через сокет:', err);
+    }
+
+    // Отправляем HTTP-ответ
     res.json({ success: true, final: finalText });
 
   } catch (error) {
     console.error('❌ Ошибка генерации финала:', error);
     res.status(500).json({ error: error.message });
   }
-  
-// Убедимся, что gameId определена
-if (typeof gameId === 'undefined') {
-    console.error('[FINAL] gameId is undefined!');
-} else {
-    try {
-        console.log(`[FINAL] Отправка finalGenerated в комнату ${gameId}`);
-        let roomSize = 0;
-        try {
-            const room = io.sockets.adapter.rooms.get(gameId);
-            roomSize = room ? room.size : 0;
-        } catch (e) {
-            console.error('[FINAL] Ошибка при получении размера комнаты:', e);
-        }
-        console.log(`[FINAL] Размер комнаты ${gameId}: ${roomSize}`);
-        io.to(gameId).emit('finalGenerated', { final: finalText });
-    } catch (err) {
-        console.error('[FINAL] Критическая ошибка при отправке финала:', err);
-    }
-}
-
-
 });
 
 // Socket.IO
