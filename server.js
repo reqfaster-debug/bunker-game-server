@@ -23,7 +23,7 @@ const corsOptions = {
       'http://127.0.0.1',
       'http://127.0.0.1:3000',
       'http://o96894pc.beget.tech',
-    
+
     ];
 
     // Проверяем, есть ли origin в списке разрешенных
@@ -269,7 +269,8 @@ function emitGameUpdateFixed(gameId) {
     disaster: game.disaster,
     bunker: game.bunker,
     totalSlots: game.totalSlots,
-    bunkerResources: game.bunkerResources || []
+    bunkerResources: game.bunkerResources || [],
+    finalGenerated: game.finalGenerated || false
   });
 }
 
@@ -2223,8 +2224,8 @@ const ABILITY_LIST = [
   { value: "Критическая неудача: в бункере случилось обрушение несущей стены, количество мест для выживших уменьшилось на 1", includeInFinal: false },
   { value: "Расширение территории: в бункере нашли потайную комнату, количество мест для выживших увеличилось на 1", includeInFinal: false },
   { value: "Прицеп: у выбранного игрока появляется 3х летний ребенок", includeInFinal: true },
-  { value: "В бункере обнаружен запертый сейф с едой на год, открыть можно только специальным ключом от сейфа", includeInFinal: true},
-  { value: "В бункере обнаружен запертый сейф с огнестрельным оружием, открыть можно только специальным ключом от сейфа", includeInFinal: true},
+  { value: "В бункере обнаружен запертый сейф с едой на год, открыть можно только специальным ключом от сейфа", includeInFinal: true },
+  { value: "В бункере обнаружен запертый сейф с огнестрельным оружием, открыть можно только специальным ключом от сейфа", includeInFinal: true },
 
 ];
 
@@ -2424,7 +2425,8 @@ io.on('connection', (socket) => {
             player: player,
             players: game.players,
             creatorId: game.creator,
-            bunkerResources: game.bunkerResources || []
+            bunkerResources: game.bunkerResources || [],
+            finalGenerated: game.finalGenerated || false
           });
 
           console.log('Игрок восстановлен в игре:', player.name);
@@ -2666,7 +2668,8 @@ io.on('connection', (socket) => {
           players: game.players,
           isCreator: player.id === lobby.creator,
           creatorId: game.creator,
-          bunkerResources: game.bunkerResources
+          bunkerResources: game.bunkerResources,
+          finalGenerated: game.finalGenerated || false
         });
       });
 
@@ -2705,7 +2708,8 @@ io.on('connection', (socket) => {
       players: game.players,
       isCreator: player.id === game.creator,
       creatorId: game.creator,
-      bunkerResources: game.bunkerResources || []
+      bunkerResources: game.bunkerResources || [],
+      finalGenerated: game.finalGenerated || false
     });
   });
 
