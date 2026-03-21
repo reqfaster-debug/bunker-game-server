@@ -17,8 +17,13 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     // Список разрешенных доменов
-    const allowedOrigins = [     
-      'http://o96894pc.beget.tech/',        
+    const allowedOrigins = [
+      'http://localhost',
+      'http://localhost:3000',
+      'http://127.0.0.1',
+      'http://127.0.0.1:3000',
+      'http://o96894pc.beget.tech',
+    
     ];
 
     // Проверяем, есть ли origin в списке разрешенных
